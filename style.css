@@ -1,0 +1,163 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+
+/* Basic resets */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  min-height: 100vh;
+  overscroll-behavior: none;
+  font-family: 'Inter', sans-serif;
+  background-color: transparent; /* THREE.js scene.background handles this */
+  color: #ffffff;
+  overflow: hidden; /* prevent any page scroll — scroll wheel is for cards only */
+}
+
+/* 
+  Full screen split architecture setup.
+  The Three.js scene runs in the background. 
+*/
+#webgl-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 0; /* Must be >= 0 so canvas is not buried behind body background */
+  pointer-events: none;
+}
+
+#css3d-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 1;       /* sits above webgl but below DOM UI if any */
+  pointer-events: none; /* container itself passes through */
+}
+
+/* 
+  Standard DOM Content wrapper.
+  Pushed down 100vh so the 3D scene gets the initial viewport attention,
+  or setup however the portfolio requires. Here it shares space.
+  For awwwards level, we might have sticky sections.
+*/
+#scroll-content {
+  display: none; /* Hide during hero-only phase — no page scroll */
+}
+
+/* Dummy content styling */
+.dummy-section {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.content-block {
+  max-width: 800px;
+  text-align: center;
+  padding: 2rem;
+  background: rgba(10, 10, 10, 0.6);
+  backdrop-filter: blur(10px);
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+h1, h2 {
+  font-weight: 800;
+  margin-bottom: 1rem;
+  font-size: 3rem;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, #fff 0%, #aaa 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+p {
+  font-size: 1.25rem;
+  color: #a0a0a0;
+  line-height: 1.6;
+}
+
+/* ==========================================
+   CSS3D Identity Card Component
+   ========================================== */
+.identity-card {
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 18px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  overflow: hidden; 
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  
+  pointer-events: auto;
+  cursor: pointer;
+  user-select: none;
+  transform-style: preserve-3d;
+  will-change: transform, width, height, opacity, filter;
+}
+
+.identity-card .card-scaler {
+  transform: scale(1) translateZ(0px);
+  transform-style: preserve-3d;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  height: 100%;
+}
+
+.identity-card:hover {
+  border-color: rgba(255, 255, 255, 0.35);
+  box-shadow: 
+    inset 0 1px 2px rgba(255, 255, 255, 0.3), 
+    inset 0 0 20px rgba(255, 255, 255, 0.1),
+    0 16px 50px rgba(0, 0, 0, 0.4);
+}
+
+.identity-card img {
+  width: 100%;
+  height: 50%;
+  flex-grow: 1; /* let image take priority space as it transforms perfectly with cover */
+  min-height: 100px;
+  max-height: 160px;
+  object-fit: cover;
+  border-radius: 8px;
+  pointer-events: none;
+}
+
+.identity-card .text-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  text-align: center;
+  margin-top: 0.5rem;
+}
+
+.identity-card h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: white;
+  background: none;
+  -webkit-text-fill-color: initial;
+}
+
+.identity-card p.subtitle {
+  margin: 0;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 400;
+}
