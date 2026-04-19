@@ -1,12 +1,24 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
-import { Download } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Download }            from 'lucide-react'
+import PageShell               from '@/components/PageShell'
+
+/* ═══════════════════════════════════════════════════════════════
+   DATA
+═══════════════════════════════════════════════════════════════ */
+
+const STATS = [
+  { value: '7+',  label: 'Years' },
+  { value: '40+', label: 'Projects' },
+  { value: '3',   label: 'Awards' },
+]
 
 const EXPERIENCE = [
   {
+    index:   '01',
     role:    'Creative Developer',
-    company: 'Freelance',
+    company: 'Freelance — Remote',
     period:  '2022 — Present',
     points: [
       'Built immersive 3D web experiences using Three.js, CSS3DRenderer, and custom GLSL shaders.',
@@ -15,8 +27,9 @@ const EXPERIENCE = [
     ],
   },
   {
+    index:   '02',
     role:    'Front-End Engineer',
-    company: 'Studio X',
+    company: 'Studio X — London',
     period:  '2020 — 2022',
     points: [
       'Delivered interactive campaigns for Fortune 500 clients with sub-1.5s LCP.',
@@ -25,8 +38,9 @@ const EXPERIENCE = [
     ],
   },
   {
+    index:   '03',
     role:    'UI Developer',
-    company: 'Digital Agency',
+    company: 'Digital Agency — Berlin',
     period:  '2018 — 2020',
     points: [
       'Converted complex Figma designs into pixel-perfect, accessible React components.',
@@ -40,249 +54,524 @@ const EDUCATION = [
     degree:      'BSc Computer Science',
     institution: 'University of Technology',
     period:      '2014 — 2018',
-    note:        'First Class Honours · Thesis: Real-time 3D rendering in the browser',
+    note:        'First Class Honours',
+    thesis:      'Thesis: Real-time 3D rendering in the browser',
   },
   {
-    degree:      'Advanced Certificate — 3D & Motion Design',
+    degree:      'Advanced Certificate',
+    subtitle:    '3D & Motion Design',
     institution: 'Motion School',
     period:      '2021',
   },
 ]
 
-const SKILLS = [
-  'Three.js', 'WebGL', 'GLSL', 'GSAP', 'Framer Motion',
-  'React', 'Next.js', 'TypeScript', 'Node.js', 'Express',
-  'MongoDB', 'PostgreSQL', 'Tailwind CSS', 'Figma', 'Blender',
+const SKILL_GROUPS = [
+  {
+    category: 'Creative & Motion',
+    items:    ['Three.js', 'CSS3DRenderer', 'WebGL / GLSL', 'GSAP', 'Framer Motion', 'Spline'],
+  },
+  {
+    category: 'Engineering',
+    items:    ['React', 'Next.js 14', 'TypeScript', 'Node.js / Express', 'MongoDB', 'PostgreSQL'],
+  },
+  {
+    category: 'Design & Tools',
+    items:    ['Figma', 'Blender', 'Tailwind CSS', 'Adobe Suite', 'Storybook'],
+  },
 ]
 
+/* ═══════════════════════════════════════════════════════════════
+   SUB-COMPONENTS
+═══════════════════════════════════════════════════════════════ */
+
+function SectionHeading({ label }: { label: string }) {
+  return (
+    <div style={{ marginBottom: '28px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <span style={{
+          fontFamily:    "'Inter', sans-serif",
+          fontSize:      '9px', fontWeight: 500,
+          letterSpacing: '0.36em',
+          textTransform: 'uppercase',
+          color:         'var(--gold)',
+          flexShrink:    0,
+        }}>
+          {label}
+        </span>
+        <div style={{
+          flex:       1,
+          height:     '1px',
+          background: 'linear-gradient(90deg, var(--gold-border), transparent)',
+        }} />
+      </div>
+    </div>
+  )
+}
+
+function ExperienceBlock({
+  job,
+  hovered,
+  onEnter,
+  onLeave,
+}: {
+  job:     typeof EXPERIENCE[number]
+  hovered: boolean
+  onEnter: () => void
+  onLeave: () => void
+}) {
+  return (
+    <div
+      onMouseEnter={onEnter}
+      onMouseLeave={onLeave}
+      style={{
+        background:   hovered ? 'var(--surface-2)' : 'var(--surface)',
+        border:       `1px solid ${hovered ? 'var(--gold-border)' : 'var(--border)'}`,
+        borderLeft:   `2px solid ${hovered ? 'var(--gold)' : 'rgba(201,168,76,0.22)'}`,
+        borderRadius: `0 var(--radius-sm) var(--radius-sm) 0`,
+        padding:      '22px 24px',
+        cursor:       'none',
+        transition:   `background var(--t-base) var(--ease),
+                       border-color var(--t-base) var(--ease)`,
+      }}
+    >
+      {/* Header */}
+      <div style={{
+        display:        'flex',
+        alignItems:     'flex-start',
+        justifyContent: 'space-between',
+        gap:            '12px',
+        marginBottom:   '4px',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: '12px' }}>
+          <span style={{
+            fontFamily:    "'Inter', sans-serif",
+            fontSize:      '9px', fontWeight: 500,
+            letterSpacing: '0.18em',
+            color:         'var(--text-ghost)',
+            flexShrink:    0,
+          }}>
+            {job.index}
+          </span>
+          <h3 style={{
+            fontFamily:    "'Playfair Display', serif",
+            fontSize:      '1.05rem', fontWeight: 600,
+            color:         hovered ? '#fff' : 'var(--text-secondary)',
+            lineHeight:    1.2,
+            letterSpacing: '-0.010em',
+            transition:    'color var(--t-base)',
+          }}>
+            {job.role}
+          </h3>
+        </div>
+        <span style={{
+          fontFamily:    "'Inter', sans-serif",
+          fontSize:      '10px', fontWeight: 400,
+          letterSpacing: '0.06em',
+          color:         'var(--text-dim)',
+          flexShrink:    0,
+          paddingTop:    '2px',
+        }}>
+          {job.period}
+        </span>
+      </div>
+
+      <p style={{
+        fontFamily:    "'Inter', sans-serif",
+        fontSize:      '9px', fontWeight: 500,
+        letterSpacing: '0.20em', textTransform: 'uppercase',
+        color:         'var(--gold-muted)',
+        marginBottom:  '14px',
+      }}>
+        {job.company}
+      </p>
+
+      {/* Rule */}
+      <div style={{ height: '1px', background: 'var(--border)', marginBottom: '14px' }} />
+
+      {/* Points */}
+      <ul style={{ display: 'flex', flexDirection: 'column', gap: '7px', margin: 0, padding: 0, listStyle: 'none' }}>
+        {job.points.map((point, i) => (
+          <li key={i} style={{ display: 'flex', gap: '10px' }}>
+            <span style={{
+              color:     'var(--gold-border)',
+              flexShrink: 0,
+              marginTop:  '2px',
+              fontSize:   '13px',
+              lineHeight: 1.7,
+            }}>—</span>
+            <span style={{
+              fontSize:   '13px',
+              color:      'var(--text-muted)',
+              lineHeight: 1.75,
+            }}>
+              {point}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+function EducationCard({ edu }: { edu: typeof EDUCATION[number] }) {
+  const [hovered, setHovered] = useState(false)
+
+  return (
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        background:   hovered ? 'var(--surface-2)' : 'var(--surface)',
+        border:       `1px solid ${hovered ? 'var(--gold-border)' : 'var(--border)'}`,
+        borderRadius: 'var(--radius-sm)',
+        padding:      '20px 22px',
+        cursor:       'none',
+        transition:   `background var(--t-base) var(--ease),
+                       border-color var(--t-base) var(--ease)`,
+      }}
+    >
+      <span style={{
+        fontFamily:    "'Inter', sans-serif",
+        fontSize:      '10px', fontWeight: 400,
+        letterSpacing: '0.06em',
+        color:         'var(--text-dim)',
+        display:       'block',
+        marginBottom:  '10px',
+      }}>
+        {edu.period}
+      </span>
+
+      <h3 style={{
+        fontFamily:    "'Playfair Display', serif",
+        fontSize:      '1rem', fontWeight: 600,
+        color:         '#fff', lineHeight: 1.2,
+        letterSpacing: '-0.010em',
+        marginBottom:  'subtitle' in edu && edu.subtitle ? '2px' : '6px',
+      }}>
+        {edu.degree}
+      </h3>
+
+      {'subtitle' in edu && edu.subtitle && (
+        <p style={{
+          fontFamily:  "'Playfair Display', serif",
+          fontSize:    '0.85rem', fontStyle: 'italic',
+          color:       'var(--gold)', lineHeight: 1.2,
+          marginBottom: '6px',
+        }}>
+          {edu.subtitle}
+        </p>
+      )}
+
+      <p style={{
+        fontFamily:    "'Inter', sans-serif",
+        fontSize:      '11px',
+        color:         'var(--text-dim)',
+        letterSpacing: '0.03em',
+        marginBottom:  ('note' in edu && edu.note) || ('thesis' in edu && edu.thesis) ? '10px' : '0',
+      }}>
+        {edu.institution}
+      </p>
+
+      {'note' in edu && edu.note && (
+        <p style={{
+          fontFamily:    "'Inter', sans-serif",
+          fontSize:      '11px', fontWeight: 500,
+          color:         'var(--gold-muted)',
+          letterSpacing: '0.04em',
+          marginBottom:  'thesis' in edu && edu.thesis ? '3px' : '0',
+        }}>
+          {edu.note}
+        </p>
+      )}
+
+      {'thesis' in edu && edu.thesis && (
+        <p style={{
+          fontFamily: "'Inter', sans-serif",
+          fontSize:   '11px', fontStyle: 'italic',
+          color:      'var(--text-ghost)',
+          lineHeight: 1.5,
+        }}>
+          {edu.thesis}
+        </p>
+      )}
+    </div>
+  )
+}
+
+function SkillGroup({ group }: { group: typeof SKILL_GROUPS[number] }) {
+  return (
+    <div>
+      {/* Category header */}
+      <p style={{
+        fontFamily:    "'Inter', sans-serif",
+        fontSize:      '9px', fontWeight: 500,
+        letterSpacing: '0.28em', textTransform: 'uppercase',
+        color:         'var(--gold)',
+        marginBottom:  '10px',
+      }}>
+        {group.category}
+      </p>
+      <div style={{
+        height:       '1px',
+        background:   'linear-gradient(90deg, var(--gold-border), transparent)',
+        marginBottom: '16px',
+      }} />
+      <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '9px' }}>
+        {group.items.map(item => (
+          <li key={item} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{
+              width: '4px', height: '4px', borderRadius: '50%',
+              background: 'var(--gold-border)', flexShrink: 0,
+            }} />
+            <span style={{
+              fontFamily:    "'Inter', sans-serif",
+              fontSize:      '13px',
+              color:         'var(--text-muted)',
+              letterSpacing: '0.01em',
+            }}>
+              {item}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   PAGE
+═══════════════════════════════════════════════════════════════ */
+
 export default function CVPage() {
-  const sectionRefs = useRef<(HTMLElement | null)[]>([])
+  const [hoveredExp, setHoveredExp] = useState<number | null>(null)
 
   useEffect(() => {
+    const els = document.querySelectorAll<HTMLElement>('.reveal')
     const obs = new IntersectionObserver(
-      (entries) => entries.forEach((e) => {
-        if (e.isIntersecting) e.target.classList.add('is-visible')
-      }),
-      { threshold: 0.12 }
+      entries => entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('is-visible') }),
+      { threshold: 0.08 },
     )
-    sectionRefs.current.forEach((el) => el && obs.observe(el))
+    els.forEach(el => obs.observe(el))
     return () => obs.disconnect()
   }, [])
 
-  const addRef = (i: number) => (el: HTMLElement | null) => {
-    sectionRefs.current[i] = el
-  }
-
   return (
-    <main className="min-h-screen pt-24 pb-28 px-6 md:px-10 print-area" style={{ background: 'var(--bg)' }}>
-      <div className="max-w-3xl mx-auto">
+    <PageShell>
+      <main
+        className="min-h-screen pb-32 print-area"
+        style={{ background: 'var(--bg)', paddingTop: '112px' }}
+      >
+        <div style={{ maxWidth: '800px', margin: '0 auto', padding: '0 clamp(20px, 5vw, 40px)' }}>
 
-        {/* Download */}
-        <div className="flex justify-end mb-10 no-print">
-          <button
-            onClick={() => window.print()}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-full
-                       text-xs tracking-widest uppercase transition-all"
-            style={{
-              border:  '1px solid var(--gold-border)',
-              color:   'var(--text-muted)',
-              background: 'transparent',
-              cursor: 'none',
-            }}
-            onMouseEnter={(e) => {
-              ;(e.currentTarget as HTMLButtonElement).style.color          = '#fff'
-              ;(e.currentTarget as HTMLButtonElement).style.borderColor    = 'var(--gold-muted)'
-              ;(e.currentTarget as HTMLButtonElement).style.boxShadow      = '0 0 20px var(--gold-glow)'
-            }}
-            onMouseLeave={(e) => {
-              ;(e.currentTarget as HTMLButtonElement).style.color          = 'var(--text-muted)'
-              ;(e.currentTarget as HTMLButtonElement).style.borderColor    = 'var(--gold-border)'
-              ;(e.currentTarget as HTMLButtonElement).style.boxShadow      = 'none'
-            }}
-          >
-            <Download className="w-3.5 h-3.5" />
-            Download PDF
-          </button>
-        </div>
-
-        {/* ── Header ── */}
-        <header
-          ref={addRef(0)}
-          className="reveal mb-16"
-        >
-          <p style={{
-            fontSize: '10px', letterSpacing: '0.3em',
-            textTransform: 'uppercase', color: 'var(--gold)', marginBottom: '16px',
-          }}>
-            Curriculum Vitae
-          </p>
-          <h1 style={{
-            fontFamily: "'Playfair Display', serif",
-            fontSize: 'clamp(2.8rem, 7vw, 5.5rem)',
-            fontWeight: 700, lineHeight: 1.06, color: '#fff', marginBottom: '12px',
-          }}>
-            Your<br />
-            <em style={{ fontStyle: 'italic', color: 'var(--gold)' }}>Name</em>
-          </h1>
-          <p style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '24px' }}>
-            Creative Developer &amp; 3D Web Designer
-          </p>
-          <div className="flex flex-wrap gap-5" style={{ fontSize: '11px', color: 'var(--text-dim)', letterSpacing: '0.05em' }}>
-            <span>your@email.com</span>
-            <span style={{ color: 'var(--gold-border)' }}>·</span>
-            <span>github.com/handle</span>
-            <span style={{ color: 'var(--gold-border)' }}>·</span>
-            <span>yoursite.com</span>
+          {/* ══════════════════════════════════════
+              DOWNLOAD UTILITY
+          ══════════════════════════════════════ */}
+          <div className="no-print" style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '40px' }}>
+            <button className="btn-gold" onClick={() => window.print()}>
+              <Download size={13} />
+              Download PDF
+            </button>
           </div>
-        </header>
 
-        <GoldDivider />
+          {/* ══════════════════════════════════════
+              HERO — NAME + STATS
+          ══════════════════════════════════════ */}
+          <header className="reveal" style={{ marginBottom: '56px' }}>
 
-        {/* ── About ── */}
-        <section ref={addRef(1)} className="reveal mb-14">
-          <SectionLabel>Profile</SectionLabel>
-          <p style={{ fontSize: '14px', color: 'var(--text-muted)', lineHeight: 1.8, maxWidth: '560px' }}>
-            Creative developer with a focus on 3D web experiences and immersive digital design.
-            I bridge the gap between engineering precision and artistic vision — building things
-            that feel as good as they look. Rooted in Mesopotamian heritage, shaped by Nordic
-            minimalism, driven by technology.
-          </p>
-        </section>
+            <p className="section-label" style={{ marginBottom: '22px' }}>
+              Curriculum Vitae
+            </p>
 
-        {/* ── Experience ── */}
-        <section ref={addRef(2)} className="reveal mb-14">
-          <SectionLabel>Experience</SectionLabel>
-          <div className="flex flex-col" style={{ gap: '40px' }}>
-            {EXPERIENCE.map((job, i) => (
-              <div key={i} className="flex gap-6">
-                {/* Timeline dot + line */}
-                <div className="flex flex-col items-center pt-1.5" style={{ flexShrink: 0 }}>
-                  <div style={{
-                    width: '6px', height: '6px', borderRadius: '50%',
-                    background: 'var(--gold)', boxShadow: '0 0 8px var(--gold-glow)',
-                  }} />
-                  {i < EXPERIENCE.length - 1 && (
-                    <div style={{
-                      width: '1px', flexGrow: 1, marginTop: '8px',
-                      background: 'linear-gradient(to bottom, var(--gold-border), transparent)',
-                    }} />
-                  )}
-                </div>
-                <div style={{ paddingBottom: i < EXPERIENCE.length - 1 ? '0' : '0' }}>
-                  <div className="flex flex-wrap items-baseline justify-between gap-2 mb-1">
-                    <h3 style={{
-                      fontFamily: "'Playfair Display', serif",
-                      fontSize: '1rem', fontWeight: 600, color: '#fff',
-                    }}>
-                      {job.role}
-                    </h3>
-                    <span style={{ fontSize: '11px', color: 'var(--text-dim)', letterSpacing: '0.06em' }}>
-                      {job.period}
-                    </span>
-                  </div>
-                  <p style={{
-                    fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.18em',
-                    color: 'var(--gold-muted)', marginBottom: '10px',
-                  }}>
-                    {job.company}
-                  </p>
-                  <ul style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    {job.points.map((p, j) => (
-                      <li key={j} style={{
-                        fontSize: '13px', color: 'var(--text-muted)',
-                        lineHeight: 1.7, display: 'flex', gap: '10px',
-                      }}>
-                        <span style={{ color: 'var(--gold-border)', marginTop: '2px', flexShrink: 0 }}>—</span>
-                        {p}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+            {/* Name row + stats */}
+            <div style={{
+              display:        'flex',
+              alignItems:     'flex-start',
+              justifyContent: 'space-between',
+              gap:            '32px',
+              flexWrap:       'wrap',
+              marginBottom:   '20px',
+            }}>
+              {/* Left: name + title */}
+              <div>
+                <h1 style={{
+                  fontFamily:    "'Playfair Display', serif",
+                  fontSize:      'clamp(2.8rem, 7vw, 5rem)',
+                  fontWeight:    700,
+                  lineHeight:    1.04,
+                  letterSpacing: '-0.025em',
+                  color:         '#fff',
+                  marginBottom:  '16px',
+                }}>
+                  Your<br />
+                  <em style={{ fontStyle: 'italic', color: 'var(--gold)' }}>Name</em>
+                </h1>
+                <p style={{
+                  fontFamily:    "'Inter', sans-serif",
+                  fontSize:      '13px',
+                  color:         'var(--text-muted)',
+                  letterSpacing: '0.02em',
+                  lineHeight:    1.5,
+                }}>
+                  Creative Developer &amp; 3D Web Designer
+                </p>
               </div>
-            ))}
-          </div>
-        </section>
 
-        <GoldDivider />
-
-        {/* ── Education ── */}
-        <section ref={addRef(3)} className="reveal my-14">
-          <SectionLabel>Education</SectionLabel>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            {EDUCATION.map((edu, i) => (
-              <div key={i} style={{
-                display: 'flex', flexWrap: 'wrap',
-                alignItems: 'baseline', justifyContent: 'space-between', gap: '8px',
+              {/* Right: stats */}
+              <div style={{
+                display:        'flex',
+                alignItems:     'flex-start',
+                alignSelf:      'flex-end',
+                gap:            '0',
+                paddingBottom:  '4px',
               }}>
-                <div>
-                  <h3 style={{
-                    fontFamily: "'Playfair Display', serif",
-                    fontSize: '0.95rem', fontWeight: 600, color: '#fff', marginBottom: '2px',
+                {STATS.map((stat, i) => (
+                  <div key={stat.label} style={{
+                    paddingLeft:  i > 0 ? '22px' : '0',
+                    paddingRight: i < STATS.length - 1 ? '22px' : '0',
+                    borderLeft:   i > 0 ? '1px solid var(--border)' : 'none',
+                    textAlign:    'center',
                   }}>
-                    {edu.degree}
-                  </h3>
-                  <p style={{ fontSize: '12px', color: 'var(--text-dim)' }}>{edu.institution}</p>
-                  {edu.note && (
-                    <p style={{ fontSize: '11px', color: 'var(--gold-muted)', marginTop: '3px' }}>{edu.note}</p>
-                  )}
-                </div>
-                <span style={{ fontSize: '11px', color: 'var(--text-dim)', letterSpacing: '0.06em' }}>
-                  {edu.period}
-                </span>
+                    <p style={{
+                      fontFamily:    "'Playfair Display', serif",
+                      fontSize:      '2.2rem',
+                      fontWeight:    700,
+                      color:         'var(--gold)',
+                      lineHeight:    1,
+                      letterSpacing: '-0.020em',
+                      marginBottom:  '5px',
+                    }}>
+                      {stat.value}
+                    </p>
+                    <p style={{
+                      fontFamily:    "'Inter', sans-serif",
+                      fontSize:      '9px', fontWeight: 500,
+                      letterSpacing: '0.20em', textTransform: 'uppercase',
+                      color:         'var(--text-dim)',
+                    }}>
+                      {stat.label}
+                    </p>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </section>
+            </div>
 
-        <GoldDivider />
+            {/* Contact strip */}
+            <div style={{
+              display:       'flex',
+              flexWrap:      'wrap',
+              alignItems:    'center',
+              gap:           '0',
+              marginBottom:  '28px',
+              fontFamily:    "'Inter', sans-serif",
+              fontSize:      '11px',
+              color:         'var(--text-dim)',
+              letterSpacing: '0.04em',
+            }}>
+              {(['contact@email.com', 'github.com/handle', 'yoursite.com'] as const).map((item, i) => (
+                <span key={item} style={{ display: 'flex', alignItems: 'center' }}>
+                  {i > 0 && (
+                    <span style={{ margin: '0 10px', color: 'var(--gold-border)', fontSize: '9px' }}>·</span>
+                  )}
+                  {item}
+                </span>
+              ))}
+            </div>
 
-        {/* ── Skills ── */}
-        <section ref={addRef(4)} className="reveal mt-14">
-          <SectionLabel>Skills &amp; Tools</SectionLabel>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-            {SKILLS.map((skill) => (
-              <span
-                key={skill}
-                style={{
-                  fontSize: '11px',
-                  padding: '6px 14px',
-                  borderRadius: '100px',
-                  border: '1px solid var(--gold-border)',
-                  color: 'var(--text-muted)',
-                  background: 'var(--gold-subtle)',
-                  letterSpacing: '0.03em',
-                }}
-              >
-                {skill}
-              </span>
-            ))}
-          </div>
-        </section>
+            {/* Gold rule */}
+            <div style={{
+              height:     '1px',
+              background: 'linear-gradient(90deg, var(--gold-border) 0%, transparent 70%)',
+            }} />
+          </header>
 
-      </div>
-    </main>
-  )
-}
+          {/* ══════════════════════════════════════
+              PROFILE
+          ══════════════════════════════════════ */}
+          <section className="reveal" style={{ marginBottom: '52px' }}>
+            <SectionHeading label="Profile" />
 
-function SectionLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <p style={{
-      fontSize: '9px',
-      letterSpacing: '0.3em',
-      textTransform: 'uppercase',
-      color: 'var(--gold)',
-      marginBottom: '20px',
-    }}>
-      {children}
-    </p>
-  )
-}
+            <blockquote style={{
+              margin:       0,
+              border:       '1px solid var(--border)',
+              borderLeft:   '3px solid var(--gold)',
+              borderRadius: `0 var(--radius-sm) var(--radius-sm) 0`,
+              background:   'var(--surface)',
+              padding:      '22px 26px 22px 28px',
+            }}>
+              <p style={{
+                fontFamily: "'Inter', sans-serif",
+                fontSize:   '14px',
+                color:      'var(--text-muted)',
+                lineHeight: 1.82,
+                margin:     0,
+              }}>
+                Creative developer with a focus on 3D web experiences and immersive digital design.
+                I bridge the gap between engineering precision and artistic vision — building things
+                that feel as good as they look. Rooted in Mesopotamian heritage, shaped by Nordic
+                minimalism, and driven by the belief that the web is the most powerful creative medium alive.
+              </p>
+            </blockquote>
+          </section>
 
-function GoldDivider() {
-  return (
-    <div style={{
-      width: '100%', height: '1px', marginBottom: '0',
-      background: 'linear-gradient(90deg, transparent, var(--gold-border), transparent)',
-    }} />
+          {/* ══════════════════════════════════════
+              EXPERIENCE
+          ══════════════════════════════════════ */}
+          <section className="reveal" style={{ marginBottom: '52px' }}>
+            <SectionHeading label="Experience" />
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {EXPERIENCE.map((job, i) => (
+                <ExperienceBlock
+                  key={job.index}
+                  job={job}
+                  hovered={hoveredExp === i}
+                  onEnter={() => setHoveredExp(i)}
+                  onLeave={() => setHoveredExp(null)}
+                />
+              ))}
+            </div>
+          </section>
+
+          {/* ══════════════════════════════════════
+              EDUCATION
+          ══════════════════════════════════════ */}
+          <section className="reveal" style={{ marginBottom: '52px' }}>
+            <SectionHeading label="Education" />
+
+            <div style={{
+              display:             'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+              gap:                 '10px',
+            }}>
+              {EDUCATION.map((edu, i) => (
+                <EducationCard key={i} edu={edu} />
+              ))}
+            </div>
+          </section>
+
+          {/* ══════════════════════════════════════
+              SKILLS
+          ══════════════════════════════════════ */}
+          <section className="reveal" style={{ marginBottom: '0' }}>
+            <SectionHeading label="Selected Skills" />
+
+            <div style={{
+              display:             'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+              gap:                 '32px 40px',
+              padding:             '28px 28px 26px',
+              border:              '1px solid var(--border)',
+              borderRadius:        'var(--radius-sm)',
+              background:          'var(--surface)',
+            }}>
+              {SKILL_GROUPS.map((group, i) => (
+                <SkillGroup key={i} group={group} />
+              ))}
+            </div>
+          </section>
+
+        </div>
+      </main>
+    </PageShell>
   )
 }

@@ -14,9 +14,11 @@ const config: Config = {
         display: ['Playfair Display', 'Georgia', 'serif'],
       },
       colors: {
-        gold:    '#C9A84C',
-        bg:      '#050505',
-        surface: 'rgba(255,255,255,0.03)',
+        gold:         '#C9A84C',
+        'gold-bright':'#D4B85A',
+        blue:         '#5B8AD4',
+        bg:           '#050505',
+        surface:      'rgba(255,255,255,0.038)',
       },
       borderRadius: {
         DEFAULT: '16px',
@@ -44,8 +46,8 @@ const config: Config = {
           to:   { opacity: '1', transform: 'translateX(0)' },
         },
         glowPulse: {
-          '0%, 100%': { boxShadow: '0 0 20px rgba(201,168,76,0.1)' },
-          '50%':      { boxShadow: '0 0 40px rgba(201,168,76,0.25)' },
+          '0%, 100%': { boxShadow: '0 0 20px rgba(201,168,76,0.10)' },
+          '50%':      { boxShadow: '0 0 40px rgba(201,168,76,0.28)' },
         },
       },
       backgroundImage: {

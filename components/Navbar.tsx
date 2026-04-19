@@ -1,10 +1,16 @@
 'use client'
 
-import Link          from 'next/link'
-import { usePathname } from 'next/navigation'
-import { useState }  from 'react'
-import { Menu, X }   from 'lucide-react'
-import { cn }        from '@/lib/utils'
+import { usePathname }  from 'next/navigation'
+import { useState }     from 'react'
+import { Menu, X }      from 'lucide-react'
+import dynamic          from 'next/dynamic'
+import { cn }           from '@/lib/utils'
+import TransitionLink   from '@/components/TransitionLink'
+
+const LogoScene = dynamic(
+  () => import('@/components/scene/LogoScene'),
+  { ssr: false },
+)
 
 const NAV_LINKS = [
   { href: '/projects', label: 'Work'  },
@@ -22,52 +28,60 @@ export default function Navbar() {
       className={cn(
         'fixed top-0 inset-x-0 z-50',
         'flex items-center justify-between',
-        'px-6 md:px-10 h-[60px]',
+        'px-6 md:px-10 h-[64px]',
         isHome
-          ? 'bg-transparent'
-          : 'bg-[#050505]/80 backdrop-blur-md border-b border-white/[0.05]',
+          ? 'bg-[rgba(0,0,0,0.08)] backdrop-blur-[4px]'
+          : 'bg-[#050505]/88 backdrop-blur-md border-b border-white/[0.055]',
       )}
-      style={{ transition: 'background 0.4s ease, border-color 0.4s ease' }}
+      style={{ transition: 'background 0.5s ease, border-color 0.5s ease, backdrop-filter 0.5s ease' }}
     >
-      {/* Logo */}
-      <Link
+      {/* Logo — 3D brand mark from /logo_avatar.glb */}
+      <TransitionLink
         href="/"
-        className="font-display text-base font-bold tracking-wide text-white hover:text-gold transition-colors"
-        style={{ fontFamily: "'Playfair Display', serif", letterSpacing: '0.04em' }}
+        style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}
       >
-        Portfolio
-      </Link>
+        {/* id used by the migration system to read the logo's screen position */}
+        <div id="logo-anchor" style={{ width: '58px', height: '58px', flexShrink: 0 }}>
+          <LogoScene />
+        </div>
+      </TransitionLink>
 
       {/* Desktop nav */}
-      <nav className="hidden md:flex items-center gap-8">
-        {NAV_LINKS.map(({ href, label }) => {
+      <nav className="hidden md:flex items-center gap-9">
+        {NAV_LINKS.map(({ href, label }, i) => {
           const active = pathname === href || pathname.startsWith(href + '/')
           return (
-            <Link
+            <TransitionLink
               key={href}
               href={href}
               className={cn(
-                'nav-link text-[11px] tracking-widest uppercase transition-colors',
-                active ? 'text-white active' : 'text-white/35 hover:text-white/80',
+                'nav-link text-[10px] tracking-[0.18em] uppercase transition-colors duration-200',
+                active ? 'text-white active' : 'text-white/30 hover:text-white/75',
               )}
             >
-              {label}
-            </Link>
+              <span style={{
+                fontFamily: 'Inter, sans-serif',
+                fontWeight: active ? 500 : 400,
+              }}>
+                {String(i + 1).padStart(2, '0')}&nbsp;{label}
+              </span>
+            </TransitionLink>
           )
         })}
 
         {/* Gold accent divider */}
         <span
           aria-hidden
-          style={{ width: '1px', height: '16px', background: 'rgba(201,168,76,0.25)' }}
+          style={{ width: '1px', height: '14px', background: 'rgba(201,168,76,0.22)', flexShrink: 0 }}
         />
 
-        <Link
+        <TransitionLink
           href="/admin"
-          className="text-[10px] tracking-widest uppercase text-white/20 hover:text-white/50 transition-colors"
+          className="text-[9px] tracking-[0.16em] uppercase text-white/18 hover:text-white/45 transition-colors duration-200"
+          style={{ fontFamily: 'Inter, sans-serif' }}
         >
           Admin
-        </Link>
+        </TransitionLink>
       </nav>
 
       {/* Mobile hamburger */}
@@ -81,10 +95,10 @@ export default function Navbar() {
 
       {/* Mobile menu */}
       {open && (
-        <nav className="md:hidden absolute top-[60px] inset-x-0 border-b border-white/[0.06]
+        <nav className="md:hidden absolute top-[64px] inset-x-0 border-b border-white/[0.06]
                         bg-[#050505]/95 backdrop-blur-md flex flex-col py-8 px-6 gap-7">
           {[...NAV_LINKS, { href: '/admin', label: 'Admin' }].map(({ href, label }) => (
-            <Link
+            <TransitionLink
               key={href}
               href={href}
               onClick={() => setOpen(false)}
@@ -95,7 +109,7 @@ export default function Navbar() {
               style={{ fontFamily: "'Playfair Display', serif" }}
             >
               {label}
-            </Link>
+            </TransitionLink>
           ))}
         </nav>
       )}
