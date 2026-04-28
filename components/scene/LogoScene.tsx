@@ -149,11 +149,12 @@ export default function LogoScene({ className, style }: LogoSceneProps) {
         frameloop="always"
         camera={{ fov: 40, near: 0.1, far: 100, position: [0, 0, 3] }}
         gl={{
-          antialias:           true,
-          alpha:               true,
-          powerPreference:     'high-performance',
-          toneMapping:         ACESFilmicToneMapping,
-          toneMappingExposure: 1.0,
+          antialias:            true,
+          alpha:                true,
+          preserveDrawingBuffer: true,   // required: lets LogoParticles sample rendered pixels
+          powerPreference:      'high-performance',
+          toneMapping:          ACESFilmicToneMapping,
+          toneMappingExposure:  1.0,
         }}
       >
         <Suspense fallback={null}>
