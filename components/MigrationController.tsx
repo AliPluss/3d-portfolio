@@ -24,9 +24,9 @@ export default function MigrationController({ children }: Props) {
 
       st = ScrollTrigger.create({
         trigger,
-        start:    'top 80%',
-        end:      'top 15%',
-        scrub:    true,
+        start:    'top 88%',
+        end:      'top -170%',
+        scrub:    1.6,
         onUpdate: (self) => setMigrationProgress(self.progress),
       })
     })()

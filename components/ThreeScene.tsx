@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type * as THREE_TYPES from 'three'
+import { cn } from '@/lib/utils'
 
 // ─── Card data ────────────────────────────────────────────────────────────────
 const CARD_DATA = [
@@ -28,7 +29,18 @@ export default function ThreeScene() {
   const cleanupFn  = useRef<(() => void) | null>(null)
   const heroRef    = useRef<HTMLDivElement>(null)
 
+  const [isMobile, setIsMobile] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [loadProgress, setLoadProgress] = useState(0)
+
   useEffect(() => {
+    // Basic mobile check
+    if (window.innerWidth < 768) {
+      setIsMobile(true)
+      setIsLoading(false)
+      return
+    }
+
     if (!webglRef.current || !css3dRef.current || !wrapperRef.current) return
     if (cleanupFn.current) return   // StrictMode guard
 
@@ -335,17 +347,48 @@ export default function ThreeScene() {
       }
 
       // ── 9. Load models ────────────────────────────────────────────────────
-      const loader = new GLTFLoader()
-      const loadModel = (path: string): Promise<any> =>
-        new Promise((res, rej) => loader.load(path, res, undefined, rej))
+      const manager = new THREE.LoadingManager()
+      manager.onProgress = (url, itemsLoaded, itemsTotal) => {
+        setLoadProgress(Math.round((itemsLoaded / itemsTotal) * 100))
+      }
+      
+      const loader = new GLTFLoader(manager)
+      // Add DRACOLoader support for compressed GLBs (e.g., optimized assets)
+      try {
+        const { DRACOLoader } = await import('three/addons/loaders/DRACOLoader.js') as typeof import('three/examples/jsm/loaders/DRACOLoader.js')
+        const dracoLoader = new DRACOLoader()
+        // Use CDN hosted decoder – reliable across environments
+        dracoLoader.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/')
+        loader.setDRACOLoader(dracoLoader)
+      } catch (e) {
+        console.warn('[ThreeScene] DRACOLoader not available, proceeding without.')
+      }
+      // Robust model loader: try optimized GLB first, fallback to original if it fails
+      const loadModel = async (optPath: string, fallbackPath: string): Promise<any> => {
+        try {
+          return await new Promise((res, rej) => loader.load(optPath, res, undefined, rej))
+        } catch (err) {
+          console.warn('[ThreeScene] Optimized GLB failed, loading fallback:', fallbackPath, err)
+          return await new Promise((res, rej) => loader.load(fallbackPath, res, undefined, rej))
+        }
+      }
 
       // Captured after model load so the cleanup fn (outside try) can kill its tweens
       let avatarForCleanup: THREE_TYPES.Object3D | null = null
 
+      // Failsafe: If models take longer than 12 seconds or fail silently, unlock the screen
+      const failsafeTimer = setTimeout(() => {
+        setIsLoading(false)
+        if (!cardsReady) {
+          showCards()
+          initScrollTrigger()
+        }
+      }, 12000)
+
       try {
         const [rockGltf, avatarGltf] = await Promise.all([
-          loadModel('/avatar2.glb'),
-          loadModel('/avatar.glb'),
+          loadModel('/avatar2.optimized.glb', '/avatar2.glb'),
+          loadModel('/avatar.optimized.glb', '/avatar.glb'),
         ])
 
         // ── Rock ────────────────────────────────────────────────────────
@@ -419,7 +462,9 @@ export default function ThreeScene() {
 
         // After landing: start idle animations + cards
         landTl.add(() => {
-          showCards()
+          clearTimeout(failsafeTimer)
+          setIsLoading(false) // Models loaded and landed
+          if (!cardsReady) showCards()
           initScrollTrigger()
 
           // Idle breathing — gentle vertical float (like slow inhale/exhale)
@@ -471,6 +516,8 @@ export default function ThreeScene() {
         }, '+=0.4')
 
       } catch (err) {
+        clearTimeout(failsafeTimer)
+        setIsLoading(false)
         console.error('[ThreeScene] Model load failed:', err)
         // Immediately reveal hero text if models fail to load
         const heroEl = heroRef.current
@@ -480,7 +527,7 @@ export default function ThreeScene() {
             { opacity: 1, y: 0, duration: 0.9, ease: 'power2.out', delay: 0.3 }
           )
         }
-        showCards()
+        if (!cardsReady) showCards()
         initScrollTrigger()
       }
 
@@ -521,6 +568,7 @@ export default function ThreeScene() {
 
       // ── Cleanup ───────────────────────────────────────────────────────────
       cleanupFn.current = () => {
+        clearTimeout(failsafeTimer)
         cancelAnimationFrame(animFrameId)
         window.removeEventListener('resize',    onResize)
         window.removeEventListener('mousemove', onMouseMove)
@@ -567,9 +615,79 @@ export default function ThreeScene() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  if (isMobile) {
+    return (
+      <div style={{ height: '100vh', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'flex-start', padding: '0 6vw', overflow: 'hidden' }}>
+        {/* Premium CSS Fallback Background */}
+        <div aria-hidden className="absolute inset-0 bg-[#050505]">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(201,168,76,0.12),transparent_60%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,rgba(20,30,62,0.40),transparent_70%)]" />
+          {/* Subtle noise texture */}
+          <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noiseFilter%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.65%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noiseFilter)%22/%3E%3C/svg%3E")' }} />
+        </div>
+
+        {/* Hero Identity Block (Static) */}
+        <div className="relative z-10 max-w-lg mt-12">
+          <div className="flex items-center gap-3 mb-5">
+            <div className="w-6 h-px bg-gold/70" />
+            <span className="font-inter text-[9px] font-medium tracking-[0.38em] uppercase text-gold/70">
+              Creative Developer & Designer
+            </span>
+          </div>
+
+          <h1 className="font-display text-4xl sm:text-5xl md:text-6xl font-bold text-white leading-[1.05] tracking-tight mb-5" style={{ fontFamily: "'Playfair Display', serif" }}>
+            Design at<br />
+            <em className="italic font-normal text-gold">full depth.</em>
+          </h1>
+
+          <p className="font-inter text-[12px] text-white/40 leading-relaxed tracking-wider mb-8">
+            Three.js &nbsp;·&nbsp; GSAP &nbsp;·&nbsp; React &nbsp;·&nbsp; Next.js
+          </p>
+
+          <div className="w-10 h-px bg-gradient-to-r from-gold/80 to-transparent" />
+        </div>
+
+        {/* Bottom scroll hint */}
+        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-3 opacity-60">
+          <span className="font-inter text-[8px] font-medium tracking-[0.28em] uppercase text-white/40" style={{ writingMode: 'vertical-rl' }}>
+            Explore
+          </span>
+          <div className="w-px h-12 bg-white/10 relative overflow-hidden rounded-full">
+            <div className="absolute top-0 inset-x-0 h-[40%] bg-gradient-to-b from-gold to-transparent rounded-full animate-[scroll-hint-drop_2.4s_cubic-bezier(0.4,0,0.2,1)_infinite]" />
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     // Outer wrapper creates the scroll space for ScrollTrigger panels
     <div ref={wrapperRef} style={{ height: `${SCROLL_PANELS * 100}vh`, position: 'relative' }}>
+      
+      {/* ── Premium Loading Overlay ── */}
+      <div 
+        className={cn(
+          'fixed inset-0 z-40 bg-[#050505] flex flex-col items-center justify-center transition-all duration-[1200ms] ease-in-out',
+          isLoading ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        )}
+      >
+        <div className="flex flex-col items-center gap-6">
+          {/* Rotating gold ring */}
+          <div className="relative w-16 h-16">
+            <div className="absolute inset-0 rounded-full border border-white/5" />
+            <div className="absolute inset-0 rounded-full border-t border-gold animate-spin" style={{ animationDuration: '1.5s' }} />
+            {/* Center percentage */}
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="font-inter text-[10px] font-medium tracking-[0.1em] text-white/60">
+                {loadProgress}%
+              </span>
+            </div>
+          </div>
+          <span className="font-inter text-[9px] font-medium tracking-[0.3em] uppercase text-gold/40">
+            Initializing WebGL
+          </span>
+        </div>
+      </div>
 
       {/* Sticky canvas — stays in viewport as user scrolls through panels */}
       <div

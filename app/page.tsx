@@ -2,6 +2,10 @@ import dynamic              from 'next/dynamic'
 import HomeWorkSection     from '@/components/HomeWorkSection'
 import MigrationController from '@/components/MigrationController'
 import LogoParticles       from '@/components/LogoParticles'
+import ManifestoSection    from '@/components/ManifestoSection'
+import CapabilitiesSection from '@/components/CapabilitiesSection'
+import ProcessSection      from '@/components/ProcessSection'
+import FinalCTA            from '@/components/FinalCTA'
 
 const ThreeScene = dynamic(() => import('@/components/ThreeScene'), { ssr: false })
 
@@ -42,7 +46,11 @@ export default function HomePage() {
         */}
         <div id="migration-trigger" aria-hidden style={{ height: 0, pointerEvents: 'none' }} />
 
+        <ManifestoSection />
         <HomeWorkSection />
+        <CapabilitiesSection />
+        <ProcessSection />
+        <FinalCTA />
       </main>
 
       {/* Fixed overlay — renders above everything, inside migration context */}

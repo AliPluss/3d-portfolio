@@ -13,8 +13,15 @@ function ss(a: number, b: number, x: number): number {
   const t = Math.max(0, Math.min(1, (x - a) / (b - a)))
   return t * t * (3 - 2 * t)
 }
+function s5(a: number, b: number, x: number): number {
+  const t = Math.max(0, Math.min(1, (x - a) / (b - a)))
+  return t * t * t * (t * (t * 6 - 15) + 10)
+}
 function eio(t: number): number {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
+}
+function eoc(t: number): number {
+  return 1 - Math.pow(1 - t, 3)
 }
 function bz(t: number, p0: number, p1: number, p2: number): number {
   return (1 - t) * (1 - t) * p0 + 2 * (1 - t) * t * p1 + t * t * p2
@@ -91,13 +98,13 @@ function captureLogoPixels(logoEl: HTMLElement): ShapePt[] {
       initR: c.r, initG: c.g, initB: c.b,
       /* Warm pixels (more red than blue) → gold target; rest stay near white */
       gold:         c.r > c.b + 20,
-      delay:        sr(s++) * 0.32,
+      delay:        sr(s++) * 0.24,
       size:         1.8 + sr(s++) * 2.8,
       jitterAngle:  sr(s++) * Math.PI * 2,
-      jitterDist:   2 + sr(s++) * 5,
+      jitterDist:   3 + sr(s++) * 8,
       scatterAngle: baseAng + (sr(s++) - 0.5) * Math.PI * 0.85,
-      scatterDist:  85 + sr(s++) * 245,
-      cpOffset:     (sr(s++) - 0.5) * 130,
+      scatterDist:  130 + sr(s++) * 330,
+      cpOffset:     (sr(s++) - 0.5) * 190,
     }
   })
 }
@@ -142,13 +149,13 @@ function rasterizeLogoShape(): ShapePt[] {
       lxFrac: c.lxFrac, lyFrac: c.lyFrac, ch: c.ch,
       initR: 237, initG: 233, initB: 224,
       gold: sr(s++) < 0.50,
-      delay:        sr(s++) * 0.32,
+      delay:        sr(s++) * 0.24,
       size:         2.6 + sr(s++) * 3.4,
       jitterAngle:  sr(s++) * Math.PI * 2,
-      jitterDist:   2 + sr(s++) * 5,
+      jitterDist:   3 + sr(s++) * 8,
       scatterAngle: baseAng + (sr(s++) - 0.5) * Math.PI * 0.85,
-      scatterDist:  85 + sr(s++) * 245,
-      cpOffset:     (sr(s++) - 0.5) * 130,
+      scatterDist:  130 + sr(s++) * 330,
+      cpOffset:     (sr(s++) - 0.5) * 190,
     }
   })
 }
@@ -171,17 +178,24 @@ interface Pt {
   fszFly:   number
   fszOrb:   number
   boost:    number
+  tone:     number
+  alpha:    number
+  glint:    number
+  kind:      'text' | 'halo'
+  textRole?: TextTargetRole
 }
 
 const LAYER_SPEED: [number, number, number] = [1.14, 1.00, 0.88]
 
-const N_MIG     = 24
+const N_MIG     = 54
 const N_CORE    = 160
 const N_VOLUME  = 1370
 const N_STRANDS = 8
 const N_SPR     = 70
 const N_ACCUM   = N_CORE + N_VOLUME + N_STRANDS * N_SPR
 const N_TOTAL   = N_MIG + N_ACCUM
+const N_HALO    = 204
+const N_TEXT    = N_TOTAL - N_HALO
 
 const CHAR_DX: Record<string, number> = { '3': -14, '0': 0, 'M': 14 }
 
@@ -195,18 +209,270 @@ function fontIdx(fsz: number): number {
   return Math.min(FC_COUNT - 1, Math.max(0, Math.round((fsz - FC_BASE) / FC_STEP)))
 }
 
-/* Populated by the PARTICLES IIFE; used by orbVis in the render loop */
-let _migFirstArrive = 0.54
-let _migLastArrive  = 0.88
+type TextTargetRole = 'core' | 'scatter'
+
+interface TextTarget {
+  x: number
+  y: number
+  z: number
+  ch: string
+  gold: boolean
+  role: TextTargetRole
+}
+
+function addStroke(
+  out: TextTarget[],
+  ch: string,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  count: number,
+  width: number,
+  seedBase: number,
+  role: TextTargetRole = 'core',
+  goldProb = 0.30,
+) {
+  const dx = x2 - x1
+  const dy = y2 - y1
+  const len = Math.max(0.001, Math.sqrt(dx * dx + dy * dy))
+  const nx = -dy / len
+  const ny = dx / len
+
+  for (let i = 0; i < count; i++) {
+    const t = (i + 0.5 + (sr(seedBase + i * 7) - 0.5) * 0.30) / count
+    const spread = (sr(seedBase + i * 11 + 3) - 0.5) * width
+    out.push({
+      x: x1 + dx * t + nx * spread,
+      y: y1 + dy * t + ny * spread,
+      z: (sr(seedBase + i * 13 + 5) - 0.5) * 0.045,
+      ch,
+      gold: sr(seedBase + i * 17 + 9) < goldProb,
+      role,
+    })
+  }
+}
+
+function addArc(
+  out: TextTarget[],
+  ch: string,
+  cx: number,
+  cy: number,
+  rx: number,
+  ry: number,
+  a0: number,
+  a1: number,
+  count: number,
+  width: number,
+  seedBase: number,
+  role: TextTargetRole = 'core',
+  goldProb = 0.28,
+) {
+  for (let i = 0; i < count; i++) {
+    const t = (i + 0.5 + (sr(seedBase + i * 7) - 0.5) * 0.28) / count
+    const a = lp(a0, a1, t)
+    const spread = (sr(seedBase + i * 11 + 2) - 0.5) * width
+    const x = cx + Math.cos(a) * (rx + spread)
+    const y = cy + Math.sin(a) * (ry + spread)
+    out.push({
+      x,
+      y,
+      z: (sr(seedBase + i * 13 + 4) - 0.5) * 0.045,
+      ch,
+      gold: sr(seedBase + i * 17 + 8) < goldProb,
+      role,
+    })
+  }
+}
+
+function addStrokeScatter(
+  out: TextTarget[],
+  ch: string,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  count: number,
+  width: number,
+  seedBase: number,
+) {
+  const dx = x2 - x1
+  const dy = y2 - y1
+  const len = Math.max(0.001, Math.sqrt(dx * dx + dy * dy))
+  const nx = -dy / len
+  const ny = dx / len
+
+  for (let i = 0; i < count; i++) {
+    const t = (i + 0.5 + (sr(seedBase + i * 5) - 0.5) * 0.62) / count
+    const side = sr(seedBase + i * 7 + 2) < 0.5 ? -1 : 1
+    const normal = side * (width * (0.50 + sr(seedBase + i * 11 + 4) * 1.35))
+    const along = (sr(seedBase + i * 13 + 6) - 0.5) * 0.070
+    out.push({
+      x: x1 + dx * t + nx * normal + (dx / len) * along,
+      y: y1 + dy * t + ny * normal + (dy / len) * along,
+      z: (sr(seedBase + i * 17 + 8) - 0.5) * 0.16,
+      ch,
+      gold: sr(seedBase + i * 19 + 10) < 0.36,
+      role: 'scatter',
+    })
+  }
+}
+
+function addArcScatter(
+  out: TextTarget[],
+  ch: string,
+  cx: number,
+  cy: number,
+  rx: number,
+  ry: number,
+  a0: number,
+  a1: number,
+  count: number,
+  spread: number,
+  seedBase: number,
+) {
+  for (let i = 0; i < count; i++) {
+    const t = (i + 0.5 + (sr(seedBase + i * 5) - 0.5) * 0.60) / count
+    const a = lp(a0, a1, t)
+    const outward = spread * (0.30 + Math.pow(sr(seedBase + i * 7 + 2), 0.62) * 1.28)
+    const tangent = (sr(seedBase + i * 11 + 4) - 0.5) * spread * 0.42
+    const ca = Math.cos(a)
+    const sa = Math.sin(a)
+    out.push({
+      x: cx + ca * (rx + outward) - sa * tangent,
+      y: cy + sa * (ry + outward * 0.74) + ca * tangent * 0.55,
+      z: (sr(seedBase + i * 13 + 6) - 0.5) * 0.17,
+      ch,
+      gold: sr(seedBase + i * 17 + 8) < 0.34,
+      role: 'scatter',
+    })
+  }
+}
+
+function shuffleTargets(out: TextTarget[], seedBase: number) {
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(sr(i * 23 + seedBase) * (i + 1))
+    ;[out[i], out[j]] = [out[j], out[i]]
+  }
+}
+
+function build30MTargets(count: number): TextTarget[] {
+  const core: TextTarget[] = []
+  const scatter: TextTarget[] = []
+  const coreCount = Math.round(count * 0.68)
+  const scatterCount = count - coreCount
+  const coreScale = coreCount / (N_TEXT * 0.68)
+  const scatterScale = scatterCount / (N_TEXT * 0.32)
+
+  const nCore = (v: number) => Math.max(1, Math.round(v * coreScale))
+  const nScatter = (v: number) => Math.max(1, Math.round(v * scatterScale))
+  const stroke = 0.070
+
+  addStroke(core, '3', -0.88, -0.50, -0.50, -0.50, nCore(135), stroke, 1000, 'core', 0.26)
+  addStroke(core, '3', -0.82,  0.00, -0.50,  0.00, nCore(120), stroke, 1200, 'core', 0.24)
+  addStroke(core, '3', -0.88,  0.50, -0.50,  0.50, nCore(135), stroke, 1400, 'core', 0.28)
+  addArc(core, '3', -0.57, -0.25, 0.18, 0.25, -Math.PI * 0.52, Math.PI * 0.50, nCore(170), stroke, 1600, 'core', 0.26)
+  addArc(core, '3', -0.57,  0.25, 0.18, 0.25, -Math.PI * 0.50, Math.PI * 0.52, nCore(170), stroke, 1800, 'core', 0.28)
+
+  addArc(core, '0', -0.06, 0.00, 0.25, 0.53, 0, Math.PI * 2, nCore(560), stroke * 1.03, 2200, 'core', 0.29)
+
+  addStroke(core, 'M', 0.36,  0.52, 0.36, -0.52, nCore(190), stroke, 3000, 'core', 0.30)
+  addStroke(core, 'M', 0.36, -0.52, 0.61,  0.10, nCore(170), stroke, 3200, 'core', 0.32)
+  addStroke(core, 'M', 0.61,  0.10, 0.86, -0.52, nCore(170), stroke, 3400, 'core', 0.32)
+  addStroke(core, 'M', 0.86, -0.52, 0.86,  0.52, nCore(190), stroke, 3600, 'core', 0.30)
+
+  addArcScatter(scatter, '3', -0.58, -0.25, 0.20, 0.27, -Math.PI * 0.68, Math.PI * 0.60, nScatter(165), 0.105, 4300)
+  addArcScatter(scatter, '3', -0.58,  0.25, 0.20, 0.27, -Math.PI * 0.60, Math.PI * 0.68, nScatter(165), 0.105, 4500)
+  addStrokeScatter(scatter, '3', -0.91, -0.52, -0.50, -0.52, nScatter(46), 0.085, 4700)
+  addStrokeScatter(scatter, '3', -0.85,  0.00, -0.49,  0.00, nScatter(40), 0.070, 4900)
+  addStrokeScatter(scatter, '3', -0.91,  0.52, -0.50,  0.52, nScatter(46), 0.085, 5100)
+
+  addArcScatter(scatter, '0', -0.06, 0.00, 0.29, 0.58, 0, Math.PI * 2, nScatter(300), 0.112, 5500)
+  addArcScatter(scatter, '0', -0.06, 0.00, 0.21, 0.47, 0, Math.PI * 2, nScatter(96), 0.075, 5700)
+
+  addStrokeScatter(scatter, 'M', 0.34,  0.55, 0.34, -0.55, nScatter(104), 0.100, 6200)
+  addStrokeScatter(scatter, 'M', 0.34, -0.55, 0.61,  0.12, nScatter(92), 0.092, 6400)
+  addStrokeScatter(scatter, 'M', 0.61,  0.12, 0.88, -0.55, nScatter(92), 0.092, 6600)
+  addStrokeScatter(scatter, 'M', 0.88, -0.55, 0.88,  0.55, nScatter(104), 0.100, 6800)
+
+  shuffleTargets(core, 4040)
+  shuffleTargets(scatter, 7040)
+
+  return [...core.slice(0, coreCount), ...scatter.slice(0, scatterCount)]
+}
+
+function applyFinalTargets(pts: Pt[]) {
+  const textTargets = build30MTargets(N_TEXT)
+
+  for (let i = 0; i < pts.length; i++) {
+    const p = pts[i]
+    if (i < N_TEXT) {
+      const t = textTargets[i]
+      const depth = Math.abs(t.z)
+      const isScatter = t.role === 'scatter'
+      p.kind = 'text'
+      p.textRole = t.role
+      p.ch = t.ch
+      p.gold = t.gold
+      p.ox = t.x
+      p.oy = t.y
+      p.oz = t.z
+      p.orbR = Math.min(1, Math.sqrt(t.x * t.x + t.y * t.y))
+      p.layer = depth < 0.015 ? 1 : depth < 0.032 ? 0 : 2
+      p.ba *= isScatter ? 0.72 : 0.24
+      p.boost *= isScatter ? (t.gold ? 0.66 : 0.74) : (t.gold ? 1.08 : 1.18)
+      p.alpha = Math.min(1, p.alpha * (isScatter ? 0.78 : 1.18))
+      p.fszOrb = Math.max(isScatter ? 2.0 : 3.0, p.fszOrb * (isScatter ? 0.70 : 1.08))
+    } else {
+      const h = i - N_TEXT
+      const a = h * 2.399963229728653 + sr(h * 31 + 5000) * 0.36
+      const r = 0.62 + sr(h * 37 + 5010) * 0.44
+      const flatten = 0.58 + sr(h * 41 + 5020) * 0.18
+      p.kind = 'halo'
+      p.textRole = undefined
+      p.ch = CHARS[h % 3]
+      p.gold = sr(h * 43 + 5030) < 0.22
+      p.ox = Math.cos(a) * r
+      p.oy = Math.sin(a) * r * flatten
+      p.oz = (sr(h * 47 + 5040) - 0.5) * 0.18
+      p.orbR = r
+      p.layer = 2
+      p.ba *= 0.42
+      p.boost *= 0.18
+      p.alpha *= 0.32
+      p.fszOrb = Math.max(1.4, p.fszOrb * 0.56)
+    }
+  }
+}
+
+/* ─── Explicit migration phases ───────────────────────────────────────────── */
+const LOGO_HIDE_AT      = 0.060
+const LOGO_SHOW_AT      = 0.010
+const CAPTURE_THRESHOLD = LOGO_HIDE_AT
+const CAPTURE_END       = 0.14
+const SCATTER_START     = 0.14
+const SCATTER_END       = 0.38
+const MIGRATE_START     = 0.38
+const MIGRATE_END       = 0.86
+const ORB_FORM_START    = 0.62
+const ORB_FORM_END      = 0.995
+
+function arrivalWave(t: number): number {
+  if (t < 0.15) return lp(ORB_FORM_START, 0.76, eio(t / 0.15))
+  if (t < 0.60) return lp(0.76, 0.91, eio((t - 0.15) / 0.45))
+  return lp(0.91, ORB_FORM_END, eio((t - 0.60) / 0.40))
+}
 
 const PARTICLES: Pt[] = (() => {
   const pts: Pt[] = []
   let seed = 1
-  const migArrivals: number[] = []   // migEnd per migration particle, in build order
 
   for (let i = 0; i < N_MIG; i++) {
     const ci   = Math.floor(i / (N_MIG / 3))
     const ch   = CHARS[ci]
+    const waveRank = i / Math.max(1, N_MIG - 1)
+    const waveJitter = (sr(i * 19 + 901) - 0.5) * 0.008
+    const arriveAt = Math.max(ORB_FORM_START, Math.min(ORB_FORM_END, arrivalWave(waveRank) + waveJitter))
     const nr   = 0.06 + sr(seed++) * 0.80
     const cosθ = 2 * sr(seed++) - 1
     const sinθ = Math.sqrt(Math.max(0, 1 - cosθ * cosθ))
@@ -214,7 +480,11 @@ const PARTICLES: Pt[] = (() => {
     const layer: 0|1|2 = nr < 0.34 ? 0 : nr < 0.67 ? 1 : 2
     /* Wider per-character stagger so each glyph lifts at a noticeably
      * different moment — '3' first, then '0', then 'M'.                  */
-    const migStart = 0.30 + (ci / 3) * 0.09 + sr(seed++) * 0.10
+    const migStart = Math.min(
+      arriveAt - 0.24,
+      MIGRATE_START + (ci / 3) * 0.045 + sr(seed++) * 0.09,
+      MIGRATE_END - 0.08,
+    )
 
     /* Lift direction — character-specific base angle in CSS canvas coords
      * (y-axis points down, so negative sin = upward screen motion).
@@ -223,37 +493,44 @@ const PARTICLES: Pt[] = (() => {
                     : ch === 'M' ? -0.28 * Math.PI   // ~upper-right
                     :              -0.50 * Math.PI   // straight up
     const liftAngle = liftBase + (sr(seed++) - 0.5) * 0.44
-    const liftDist  = 80 + sr(seed++) * 95            // 80–175 px
+    const liftDist  = 170 + sr(seed++) * 210           // 170–380 px
+    const driftSide = ch === '3' ? -1 : ch === 'M' ? 1 : (sr(seed++) < 0.5 ? -1 : 1)
 
     pts.push({
       ch, gold: sr(seed++) < 0.45,
       srcDx: CHAR_DX[ch] + (sr(seed++) - 0.5) * 6,
       srcDy: (sr(seed++) - 0.5) * 5,
       /* P1 — lift: offset from launch point in the lift direction        */
-      cp1Dx: Math.cos(liftAngle) * liftDist + (sr(seed++) - 0.5) * 30,
+      cp1Dx: Math.cos(liftAngle) * liftDist + driftSide * (36 + sr(seed++) * 70),
       cp1Dy: Math.sin(liftAngle) * liftDist + (sr(seed++) - 0.5) * 24,
-      /* P2 — approach: above the orb so characters descend into it       */
-      cp2Dx: (sr(seed++) - 0.5) * 80,
-      cp2Dy: -58 - sr(seed++) * 68,
+      /* P2 — approach: below the orb so the final arc visibly travels
+       * downward into the next section before settling into the sphere. */
+      cp2Dx: (sr(seed++) - 0.5) * 190,
+      cp2Dy: 220 + sr(seed++) * 300,
       ox: sinθ * Math.cos(φ) * nr, oy: cosθ * nr, oz: sinθ * Math.sin(φ) * nr,
       orbR: nr, layer,
       migStart,
-      migEnd:  (() => { const e = migStart + 0.22 + sr(seed++) * 0.12; migArrivals.push(e); return e })(),
+      migEnd:  arriveAt,
       isMig:   true,
       bp: sr(seed++) * Math.PI * 2, ba: 0.006 + sr(seed++) * 0.010,
-      fszFly:  5 + sr(seed++) * 5,                    // 5–10 px — smaller, more delicate
-      fszOrb:  Math.max(3.0, 4.0 + (1 - nr) * 3.2),
+      fszFly:  6.6 + sr(seed++) * 7.8,
+      fszOrb:  Math.max(3.0, 3.8 + (1 - nr) * 3.1 + sr(seed++) * 0.45),
       depthAmp: 0.10 + sr(seed++) * 0.22,
       boost: 1.40,
+      tone: sr(seed++),
+      alpha: 0.82 + sr(seed++) * 0.30,
+      glint: sr(seed++) * Math.PI * 2,
+      kind: 'text',
     })
   }
 
   const core: Pt[] = []
   for (let i = 0; i < N_CORE; i++) {
-    const nr   = sr(seed++) * 0.22
-    const cosθ = 2 * sr(seed++) - 1
+    const rank = (i + 0.5) / N_CORE
+    const nr   = Math.pow(rank, 0.72) * 0.22
+    const cosθ = 1 - 2 * ((i + sr(seed++) * 0.42) / N_CORE)
     const sinθ = Math.sqrt(Math.max(0, 1 - cosθ * cosθ))
-    const φ    = 2 * Math.PI * sr(seed++)
+    const φ    = i * 2.399963229728653 + sr(seed++) * 0.22
     core.push({
       ch: CHARS[i % 3], gold: sr(seed++) < 0.72,
       srcDx: 0, srcDy: 0, cp1Dx: 0, cp1Dy: 0, cp2Dx: 0, cp2Dy: 0, depthAmp: 0,
@@ -261,27 +538,28 @@ const PARTICLES: Pt[] = (() => {
       orbR: nr, layer: 0,
       migStart: 0, migEnd: 0, isMig: false,
       bp: sr(seed++) * Math.PI * 2, ba: 0.010 + sr(seed++) * 0.014,
-      fszFly: 0, fszOrb: Math.max(3.2, 4.5 + (1 - nr) * 3.6), boost: 1.65,
+      fszFly: 0, fszOrb: Math.max(3.2, 4.3 + (1 - nr) * 3.35 + sr(seed++) * 0.35), boost: 1.56,
+      tone: sr(seed++),
+      alpha: 0.78 + sr(seed++) * 0.26,
+      glint: sr(seed++) * Math.PI * 2,
+      kind: 'text',
     })
   }
-  /* Seal the arrival-time range once all migration particles are built */
-  _migFirstArrive = Math.min(...migArrivals)
-  _migLastArrive  = Math.max(...migArrivals)
-
-  /* Core — spawns immediately after its assigned migration char arrives,
-   * innermost (lowest orbR) first so the nucleus seeds before the shell. */
-  core.sort((a, b) => a.orbR - b.orbR)
+  /* Core is held back so the shell reads first; the hot center resolves late. */
+  core.sort((a, b) => b.orbR - a.orbR)
   core.forEach((p, i) => {
-    p.migStart = migArrivals[i % N_MIG] + sr(i * 11 + 2001) * 0.06
+    const rank = i / Math.max(1, N_CORE - 1)
+    p.migStart = Math.min(ORB_FORM_END, lp(0.86, ORB_FORM_END, s5(0, 1, rank)) + sr(i * 11 + 2001) * 0.014)
   })
   pts.push(...core)
 
   const vol: Pt[] = []
   for (let i = 0; i < N_VOLUME; i++) {
-    const nr    = Math.pow(sr(seed++), 0.44)
-    const cosθ  = 2 * sr(seed++) - 1
+    const shellRank = (i + sr(seed++) * 0.55) / N_VOLUME
+    const nr    = Math.pow(shellRank, 0.42)
+    const cosθ  = 1 - 2 * ((i + sr(seed++) * 0.45) / N_VOLUME)
     const sinθ  = Math.sqrt(Math.max(0, 1 - cosθ * cosθ))
-    const φ     = 2 * Math.PI * sr(seed++)
+    const φ     = i * 2.399963229728653 + sr(seed++) * 0.30
     const goldP = nr < 0.28 ? 0.60 : nr < 0.58 ? 0.24 : 0.08
     const layer: 0|1|2 = nr < 0.34 ? 0 : nr < 0.67 ? 1 : 2
     const boost = nr < 0.35 ? 1.30 : nr < 0.65 ? 1.08 : 0.90
@@ -292,14 +570,18 @@ const PARTICLES: Pt[] = (() => {
       orbR: nr, layer,
       migStart: 0, migEnd: 0, isMig: false,
       bp: sr(seed++) * Math.PI * 2, ba: 0.006 + sr(seed++) * 0.011,
-      fszFly: 0, fszOrb: Math.max(2.6, 3.7 + (1 - nr) * 2.8), boost,
+      fszFly: 0, fszOrb: Math.max(2.5, 3.5 + (1 - nr) * 2.65 + sr(seed++) * 0.32), boost,
+      tone: sr(seed++),
+      alpha: 0.74 + sr(seed++) * 0.32,
+      glint: sr(seed++) * Math.PI * 2,
+      kind: 'text',
     })
   }
-  /* Volume — each particle is assigned to a migration char; it blooms
-   * slightly after that char arrives, outer particles a little later. */
-  vol.sort((a, b) => a.orbR - b.orbR)
+  /* Volume resolves shell-first, then tightens inward for a cleaner sphere. */
+  vol.sort((a, b) => b.orbR - a.orbR)
   vol.forEach((p, i) => {
-    p.migStart = migArrivals[i % N_MIG] + 0.01 + sr(i * 13 + 3001) * 0.10
+    const rank = i / Math.max(1, N_VOLUME - 1)
+    p.migStart = Math.min(ORB_FORM_END, arrivalWave(rank) + sr(i * 13 + 3001) * 0.016 + (1 - p.orbR) * 0.038)
   })
   pts.push(...vol)
 
@@ -331,7 +613,8 @@ const PARTICLES: Pt[] = (() => {
       const layer: 0|1|2 = nr < 0.34 ? 0 : nr < 0.67 ? 1 : 2
       /* Strand particle spawns after its assigned migration char, then
        * unfurls progressively along the strand length (k/N_SPR factor). */
-      const spawnAt = migArrivals[stIdx % N_MIG] + 0.02 + (k / N_SPR) * 0.07
+      const strandRank = (stIdx % stTotal) / Math.max(1, stTotal - 1)
+      const spawnAt = Math.min(ORB_FORM_END, arrivalWave(strandRank) + sr(k * 31 + st * 113 + 700) * 0.018)
 
       pts.push({
         ch: CHARS[(st * N_SPR + k) % 3],
@@ -342,36 +625,43 @@ const PARTICLES: Pt[] = (() => {
         migStart: spawnAt, migEnd: spawnAt, isMig: false,
         bp:    sr(k * 23 + st * 107 + 500) * Math.PI * 2,
         ba:    0.008 + sr(k * 29 + st * 109 + 600) * 0.012,
-        fszFly: 0, fszOrb: Math.max(2.6, 3.6 + (1 - nr) * 2.6), boost: 1.35,
+        fszFly: 0, fszOrb: Math.max(2.6, 3.5 + (1 - nr) * 2.55 + sr(k * 37 + st * 127 + 701) * 0.28), boost: 1.30,
+        tone: sr(k * 41 + st * 131 + 702),
+        alpha: 0.76 + sr(k * 43 + st * 137 + 703) * 0.28,
+        glint: sr(k * 47 + st * 139 + 704) * Math.PI * 2,
+        kind: 'text',
       })
       stIdx++
     }
   }
 
+  applyFinalTargets(pts)
   return pts
 })()
-
-/* ─── Scatter phase constants ─────────────────────────────────────────────── */
-const CAPTURE_THRESHOLD = 0.012   // minimum progress before attempting capture
-const SCATTER_DWELL     = 0.025   // particles sit assembled until here (brief "frozen" frame)
-const SCATTER_END       = 0.65    // all shape particles dispersed
 
 /* ─── Component ──────────────────────────────────────────────────────────── */
 export default function LogoParticles() {
   const canvasRef   = useRef<HTMLCanvasElement>(null)
+  const markerRef   = useRef<HTMLSpanElement>(null)
   const progRef     = useRef(0)
-  const mouseRef    = useRef({ x: 0, y: 0, tx: 0, ty: 0 })
+  const mouseRef    = useRef({ x: 0, y: 0, tx: 0, ty: 0, has: false, strength: 0 })
   const capturedRef = useRef(false)   // true once we've hidden the logo and replaced it
   const progress    = useMigrationProgress()
   progRef.current   = progress
 
-  /* Logo opacity — controlled entirely by capturedRef so the handoff is a
-   * single hard switch with no overlap period where both are visible.          */
+  /* Keep the real navbar logo visible until canvas particles take over.
+   * Hysteresis prevents flicker near the top of the migration range. */
   useEffect(() => {
     const el = document.getElementById('logo-anchor')
     if (!el) return
-    el.style.opacity    = capturedRef.current ? '0' : '1'
-    el.style.transition = 'none'
+    if (progress <= LOGO_SHOW_AT) {
+      capturedRef.current = false
+      el.style.transition = 'none'
+      el.style.opacity = '1'
+    } else if (capturedRef.current) {
+      el.style.transition = 'opacity 180ms ease-out'
+      el.style.opacity = '0'
+    }
   }, [progress])
 
   useEffect(() => {
@@ -389,11 +679,24 @@ export default function LogoParticles() {
     resize()
     window.addEventListener('resize', resize)
 
+    const canHover = window.matchMedia('(hover: hover) and (pointer: fine)').matches
+
     const onMouseMove = (e: MouseEvent) => {
-      mouseRef.current.tx = (e.clientX / window.innerWidth  - 0.5) * 2
-      mouseRef.current.ty = (e.clientY / window.innerHeight - 0.5) * 2
+      if (!canHover) return
+      const ms = mouseRef.current
+      ms.tx = e.clientX
+      ms.ty = e.clientY
+      if (!ms.has) {
+        ms.x = ms.tx
+        ms.y = ms.ty
+        ms.has = true
+      }
+    }
+    const onMouseLeave = () => {
+      mouseRef.current.has = false
     }
     window.addEventListener('mousemove', onMouseMove)
+    window.addEventListener('mouseleave', onMouseLeave)
 
     const ctx = canvas.getContext('2d')
     if (!ctx) return
@@ -416,6 +719,9 @@ export default function LogoParticles() {
     let stopped = false
     let frame   = 0
     let _rt1 = 0, _rt2 = 0
+    let lastScrollY = window.scrollY
+    let scrollVelocity = 0
+    let scrollActivity = 0
 
     const render = () => {
       frame++
@@ -424,12 +730,22 @@ export default function LogoParticles() {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
       ctx.clearRect(0, 0, window.innerWidth, window.innerHeight)
 
+      const logoEl = document.getElementById('logo-anchor')
+
+      if (prog <= LOGO_SHOW_AT) {
+        capturedRef.current = false
+        shapePts = []
+        if (logoEl) {
+          logoEl.style.transition = 'none'
+          logoEl.style.opacity = '1'
+        }
+      }
+
       if (prog <= 0) {
         if (!stopped) raf = requestAnimationFrame(render)
         return
       }
 
-      const logoEl = document.getElementById('logo-anchor')
       const orbEl  = document.getElementById('orb-anchor')
       if (!logoEl || !orbEl) {
         if (!stopped) raf = requestAnimationFrame(render)
@@ -446,8 +762,7 @@ export default function LogoParticles() {
         const captured = captureLogoPixels(logoEl)
         shapePts = captured.length >= 30 ? captured : rasterizeLogoShape()
         capturedRef.current = true
-        /* Hide the logo in the same frame — bypasses React's schedule so
-         * the transition is single-frame with zero visual overlap.             */
+        logoEl.style.transition = 'opacity 90ms ease-out'
         logoEl.style.opacity = '0'
       }
 
@@ -457,6 +772,13 @@ export default function LogoParticles() {
       const srcY  = logR.top  + logR.height / 2
       const orbCx = oR.left   + oR.width    / 2
       const orbCy = oR.top    + oR.height   / 2
+
+      const markerEl = markerRef.current
+      if (markerEl) {
+        markerEl.style.left = `${orbCx}px`
+        markerEl.style.top = `${orbCy + Math.min(oR.height * 0.32, 82)}px`
+        markerEl.style.opacity = '0.78'
+      }
 
       let sectionProg = 0
       const sectionEl = document.getElementById('work-section')
@@ -484,14 +806,41 @@ export default function LogoParticles() {
       const RADIUS = SIZE * 0.44
       const FOV    = RADIUS * 3.2
       const tSec   = frame * 0.005
+      const scrollY = window.scrollY
+      const scrollDelta = scrollY - lastScrollY
+      lastScrollY = scrollY
+      const scrollTarget = Math.max(-1, Math.min(1, scrollDelta / 80))
+      const activityTarget = Math.min(1, Math.abs(scrollDelta) / 46)
+      scrollVelocity += (scrollTarget - scrollVelocity) * 0.16
+      scrollActivity += (activityTarget - scrollActivity) * (activityTarget > scrollActivity ? 0.22 : 0.052)
 
       const ms = mouseRef.current
-      ms.x += (ms.tx - ms.x) * 0.022
-      ms.y += (ms.ty - ms.y) * 0.022
+      if (canHover && ms.has) {
+        ms.x += (ms.tx - ms.x) * 0.085
+        ms.y += (ms.ty - ms.y) * 0.085
+      }
 
-      const angleY = frame * 0.0010
-      const angleX = Math.sin(tSec * 0.40) * 0.018 + ms.y * 0.032
-      const angleZ = Math.sin(tSec * 0.27) * 0.009 + ms.x * 0.016
+      const pDx = ms.x - orbCx
+      const pDy = ms.y - orbCy
+      const pointerDist = Math.sqrt(pDx * pDx + pDy * pDy)
+      const pointerTarget = canHover && ms.has ? 1 - ss(RADIUS * 0.62, RADIUS * 2.08, pointerDist) : 0
+      ms.strength += (pointerTarget - ms.strength) * (pointerTarget > ms.strength ? 0.12 : 0.055)
+
+      const pointerX = Math.max(-1, Math.min(1, pDx / Math.max(1, RADIUS * 1.45))) * ms.strength
+      const pointerY = Math.max(-1, Math.min(1, pDy / Math.max(1, RADIUS * 1.45))) * ms.strength
+      const formedT = ss(ORB_FORM_START, ORB_FORM_END, prog)
+      const scrollEnergy = scrollActivity * formedT
+      const scrollDrift = scrollVelocity * formedT
+      const interactionScale = 1 + scrollEnergy * 0.016 + ms.strength * formedT * 0.006
+      const interactionGlow = 1 + scrollEnergy * 0.15 + ms.strength * formedT * 0.10
+      const pointerActive = ms.strength * formedT
+      const pointerRadius = RADIUS * 1.15
+      const pointerRadius2 = pointerRadius * pointerRadius
+      const pointerPush = RADIUS * 0.052
+
+      const angleY = frame * (0.0010 + scrollEnergy * 0.00025) + scrollDrift * 0.018
+      const angleX = Math.sin(tSec * 0.40) * 0.018 + pointerY * 0.036 + scrollDrift * 0.010
+      const angleZ = Math.sin(tSec * 0.27) * 0.009 + pointerX * 0.020 - scrollDrift * 0.007
 
       for (let li = 0; li < 3; li++) {
         const spd = LAYER_SPEED[li]
@@ -506,17 +855,30 @@ export default function LogoParticles() {
        *
        * Phase timeline (after capture at CAPTURE_THRESHOLD):
        *
-       *   < SCATTER_DWELL  : assembled — particles sit exactly on logo pixels,
+       *   < SCATTER_START  : assembled — particles sit exactly on logo pixels,
        *                       full opacity. First frame looks identical to logo.
-       *   SCATTER_DWELL → SCATTER_END: easeOutCubic bezier explosion,
+       *   SCATTER_START → SCATTER_END: easeOutCubic bezier explosion,
        *                       per-particle stagger, initColor → gold drift.
        *   > SCATTER_END    : skip drawing.
        *
        * Logo opacity is 0 for this entire window (hard switch at capture time).
        */
       if (capturedRef.current && prog < SCATTER_END && shapePts.length > 0) {
-        const scatterRange = SCATTER_END - SCATTER_DWELL
-        const scatterT     = Math.max(0, (prog - SCATTER_DWELL) / scatterRange)
+        const scatterRange = SCATTER_END - SCATTER_START
+        const scatterT     = Math.max(0, (prog - SCATTER_START) / scatterRange)
+        const flashT       = Math.max(0, 1 - Math.abs((prog - CAPTURE_THRESHOLD) / 0.055))
+
+        if (flashT > 0.01) {
+          const flash = eoc(flashT)
+          const g = ctx.createRadialGradient(srcX, srcY, 0, srcX, srcY, logR.width * 1.9)
+          g.addColorStop(0, `rgba(255,255,255,${(0.32 * flash).toFixed(3)})`)
+          g.addColorStop(0.18, `rgba(248,226,154,${(0.22 * flash).toFixed(3)})`)
+          g.addColorStop(0.48, `rgba(212,175,55,${(0.10 * flash).toFixed(3)})`)
+          g.addColorStop(1, 'rgba(0,0,0,0)')
+          ctx.globalAlpha = 1
+          ctx.fillStyle = g
+          ctx.fillRect(srcX - logR.width * 2, srcY - logR.width * 2, logR.width * 4, logR.width * 4)
+        }
 
         ctx.textAlign    = 'center'
         ctx.textBaseline = 'middle'
@@ -555,7 +917,7 @@ export default function LogoParticles() {
              *   intermediate point to the final scatter destination.             */
 
             const eff = Math.min(1, Math.max(0,
-              (scatterT - p.delay * 0.45) / (1 - p.delay * 0.45)
+              (scatterT - p.delay * 0.34) / (1 - p.delay * 0.34)
             ))
 
             /* Intermediate point — clamped to logo CSS bounds (2px inset).
@@ -614,8 +976,8 @@ export default function LogoParticles() {
               const p2x   = px0 + Math.cos(p.scatterAngle) * p.scatterDist
               const p2y   = py0 + Math.sin(p.scatterAngle) * p.scatterDist
               const perpA = p.scatterAngle + Math.PI * 0.5
-              const cpX   = p1x + Math.cos(perpA) * p.cpOffset * 0.7
-              const cpY   = p1y + Math.sin(perpA) * p.cpOffset * 0.7
+              const cpX   = p1x + Math.cos(perpA) * p.cpOffset
+              const cpY   = p1y + Math.sin(perpA) * p.cpOffset
 
               px    = bz(easedT, p1x, cpX, p2x)
               py    = bz(easedT, p1y, cpY, p2y)
@@ -645,36 +1007,50 @@ export default function LogoParticles() {
 
       /* ── Orb glow ─────────────────────────────────────────────────────────── */
       /* Orb glow begins only once the first migration char actually arrives */
-      const orbVis = ss(_migFirstArrive - 0.02, _migFirstArrive + 0.14, prog)
-      if (orbVis > 0.01) {
-        const pulse = 0.82 + 0.18 * Math.sin(tSec * 0.38)
+      const softGlowVis = Math.pow(ss(0.68, ORB_FORM_END, prog), 2.2)
+      const coreGlowVis = Math.pow(ss(0.88, ORB_FORM_END, prog), 2.4)
+      if (softGlowVis > 0.01 || coreGlowVis > 0.01) {
+        const pulse = (0.86 + 0.14 * Math.sin(tSec * 0.34 + scrollDrift * 0.42)) * interactionGlow
+        const haloBreath = 0.92 + 0.08 * Math.sin(tSec * 0.24 + 0.7) + scrollEnergy * 0.035
+        const colorPhase = tSec * 0.055 + scrollDrift * 0.10 + pointerActive * 0.16
+        const warmShift = 0.5 + 0.5 * Math.sin(colorPhase)
+        const centerR = Math.round(lp(238, 247, warmShift))
+        const centerG = Math.round(lp(222, 204, warmShift))
+        const centerB = Math.round(lp(184, 123, warmShift))
+        const accentVis = Math.min(1, 0.62 + scrollEnergy * 0.20 + pointerActive * 0.24)
+        const reflectedR = Math.round(lp(230, centerR, 0.34))
+        const reflectedG = Math.round(lp(214, centerG, 0.30))
+        const reflectedB = Math.round(lp(188, centerB, 0.26))
 
-        /* Hot core — uses innerBoost so it brightens more than the outer layers */
-        const hotR = RADIUS * 0.30
+        /* Hot core carries the restrained color shift; letters remain white/gold. */
+        const hotR = RADIUS * 0.30 * interactionScale
         const hot  = ctx.createRadialGradient(orbCx, orbCy, 0, orbCx, orbCy, hotR)
-        hot.addColorStop(0,    `rgba(255,218,75,${(0.18 * pulse * orbVis * innerBoost).toFixed(3)})`)
-        hot.addColorStop(0.38, `rgba(222,178,52,${(0.09 * pulse * orbVis * innerBoost).toFixed(3)})`)
+        hot.addColorStop(0,    `rgba(${centerR},${centerG},${centerB},${(0.070 * pulse * coreGlowVis * innerBoost * accentVis).toFixed(3)})`)
+        hot.addColorStop(0.34, `rgba(255,222,132,${(0.040 * pulse * coreGlowVis * innerBoost).toFixed(3)})`)
+        hot.addColorStop(0.68, `rgba(${reflectedR},${reflectedG},${reflectedB},${(0.014 * pulse * coreGlowVis * accentVis).toFixed(3)})`)
         hot.addColorStop(1,    'rgba(0,0,0,0)')
         ctx.globalAlpha = 1
         ctx.fillStyle   = hot
         ctx.fillRect(orbCx - hotR, orbCy - hotR, hotR * 2, hotR * 2)
 
         /* Mid volumetric glow — tracks glowBoost (same as before) */
-        const gR2  = RADIUS * 0.90
+        const gR2  = RADIUS * 0.90 * interactionScale
         const glow = ctx.createRadialGradient(orbCx, orbCy, 0, orbCx, orbCy, gR2)
-        glow.addColorStop(0,    `rgba(220,182,60,${(0.11 * pulse * orbVis * glowBoost).toFixed(3)})`)
-        glow.addColorStop(0.22, `rgba(212,175,55,${(0.084 * pulse * orbVis * glowBoost).toFixed(3)})`)
-        glow.addColorStop(0.48, `rgba(238,232,215,${(0.044 * pulse * orbVis * glowBoost).toFixed(3)})`)
-        glow.addColorStop(0.76, `rgba(225,220,208,${(0.013 * orbVis * glowBoost).toFixed(3)})`)
+        glow.addColorStop(0,    `rgba(${reflectedR},${reflectedG},${reflectedB},${(0.030 * pulse * softGlowVis * glowBoost * accentVis).toFixed(3)})`)
+        glow.addColorStop(0.22, `rgba(212,175,55,${(0.036 * pulse * softGlowVis * glowBoost).toFixed(3)})`)
+        glow.addColorStop(0.48, `rgba(238,232,215,${(0.018 * pulse * softGlowVis * glowBoost).toFixed(3)})`)
+        glow.addColorStop(0.72, `rgba(${centerR},${centerG},${centerB},${(0.004 * softGlowVis * glowBoost * accentVis).toFixed(3)})`)
+        glow.addColorStop(0.84, `rgba(225,220,208,${(0.004 * softGlowVis * glowBoost).toFixed(3)})`)
         glow.addColorStop(1,    'rgba(0,0,0,0)')
         ctx.fillStyle = glow
         ctx.fillRect(orbCx - gR2, orbCy - gR2, gR2 * 2, gR2 * 2)
 
         /* Outer halo — uses outerTaper so it recedes slightly as inner brightens */
-        const haloR = RADIUS * 1.18
+        const haloR = RADIUS * 1.20 * interactionScale
         const halo  = ctx.createRadialGradient(orbCx, orbCy, RADIUS * 0.58, orbCx, orbCy, haloR)
-        halo.addColorStop(0,    `rgba(212,175,55,${(0.024 * pulse * orbVis * glowBoost * outerTaper).toFixed(3)})`)
-        halo.addColorStop(0.52, `rgba(238,230,212,${(0.009 * orbVis * glowBoost * outerTaper).toFixed(3)})`)
+        halo.addColorStop(0,    `rgba(${reflectedR},${reflectedG},${reflectedB},${(0.008 * haloBreath * softGlowVis * glowBoost * outerTaper * accentVis).toFixed(3)})`)
+        halo.addColorStop(0.34, `rgba(212,175,55,${(0.006 * haloBreath * softGlowVis * glowBoost * outerTaper).toFixed(3)})`)
+        halo.addColorStop(0.52, `rgba(238,230,212,${(0.004 * softGlowVis * glowBoost * outerTaper).toFixed(3)})`)
         halo.addColorStop(1,    'rgba(0,0,0,0)')
         ctx.fillStyle = halo
         ctx.fillRect(orbCx - haloR, orbCy - haloR, haloR * 2, haloR * 2)
@@ -690,18 +1066,24 @@ export default function LogoParticles() {
         if (p.isMig) {
           const dur    = Math.max(0.001, p.migEnd - p.migStart)
           const migT   = Math.min(1, (prog - p.migStart) / dur)
-          const BLEND  = 0.20
-          const blendT = ss(1 - BLEND, 1, migT)
+          const BLEND  = 0.18
+          const blendT = s5(1 - BLEND, 1, migT)
 
           const bs = 1 + p.ba * Math.sin(tSec + p.bp)
           let ox = p.ox * bs, oy = p.oy * bs, oz = p.oz * bs
-          const m = mats[p.layer]
-          _rt1 = ox*m.cY + oz*m.sY; oz = -ox*m.sY + oz*m.cY; ox = _rt1
-          _rt1 = oy*m.cX - oz*m.sX; oz =  oy*m.sX + oz*m.cX; oy = _rt1
-          _rt1 = ox*m.cZ - oy*m.sZ; _rt2 = ox*m.sZ + oy*m.cZ; ox = _rt1; oy = _rt2
+          if (p.kind === 'text') {
+            ox += Math.sin(tSec * 0.54 + p.bp) * 0.004
+            oy += Math.cos(tSec * 0.46 + p.glint) * 0.003
+            oz += Math.sin(tSec * 0.38 + p.bp) * 0.012
+          } else {
+            const m = mats[p.layer]
+            _rt1 = ox*m.cY + oz*m.sY; oz = -ox*m.sY + oz*m.cY; ox = _rt1
+            _rt1 = oy*m.cX - oz*m.sX; oz =  oy*m.sX + oz*m.cX; oy = _rt1
+            _rt1 = ox*m.cZ - oy*m.sZ; _rt2 = ox*m.sZ + oy*m.cZ; ox = _rt1; oy = _rt2
+          }
           const sc    = FOV / (FOV + oz * RADIUS)
-          const orbPx = orbCx + ox * RADIUS * sc
-          const orbPy = orbCy + oy * RADIUS * sc
+          const orbPx = orbCx + ox * RADIUS * sc * interactionScale
+          const orbPy = orbCy + oy * RADIUS * sc * interactionScale
           const depth = (1 - oz) * 0.5
 
           let px: number, py: number, fsz: number, op: number
@@ -712,15 +1094,17 @@ export default function LogoParticles() {
              * P0: launch from logo character position
              * P1: lift control — pulls path upward in a character-specific
              *     direction ('3' upper-left, '0' up, 'M' upper-right)
-             * P2: approach control — pulls path above the orb so characters
-             *     descend into it from above rather than arriving laterally
+             * P2: approach control — pulls path below the orb so characters
+             *     sweep downward into the next section before settling
              * P3: exact orb landing position                                  */
-            const e   = 1 - (1 - migT) * (1 - migT)   // easeOutQuad
+            const e   = s5(0, 1, migT)
             const P0x = srcX + p.srcDx,   P0y = srcY + p.srcDy
             const P1x = P0x  + p.cp1Dx,   P1y = P0y  + p.cp1Dy
             const P2x = orbCx + p.cp2Dx,  P2y = orbCy + p.cp2Dy
-            const flyX = bz3(e, P0x, P1x, P2x, orbCx)
-            const flyY = bz3(e, P0y, P1y, P2y, orbCy)
+            const gravity = Math.sin(Math.PI * migT) * Math.sin(Math.PI * migT) * (18 + p.orbR * 18)
+            const swirl = Math.sin(migT * Math.PI) * (13 + p.orbR * 26)
+            const flyX = bz3(e, P0x, P1x, P2x, orbCx) + Math.cos(p.bp + migT * Math.PI * 1.6) * swirl
+            const flyY = bz3(e, P0y, P1y, P2y, orbCy) + Math.sin(p.bp + migT * Math.PI * 1.2) * swirl * 0.36 + gravity
 
             px  = lp(flyX, orbPx, blendT)
             py  = lp(flyY, orbPy, blendT)
@@ -732,42 +1116,126 @@ export default function LogoParticles() {
 
             /* Opacity: quick fade-in (0–6 %), full through arc,
              * then gentle fade-out in the final 15 % before orb arrival.    */
-            const flightOp = ss(0, 0.06, migT) * (1 - ss(0.85, 1.0, migT))
+            const flightOp = s5(0, 0.08, migT) * (1 - s5(0.86, 1.0, migT))
             const orbOp    = (0.44 + (1 - p.orbR) * 0.56) * (0.04 + depth * 0.82) * p.boost
-            op = lp(flightOp, orbOp, blendT)
+            op = lp(flightOp, orbOp, blendT) * p.alpha
+
+            if (migT > 0.08 && migT < 0.98 && op > 0.02) {
+              const tone = p.tone - 0.5
+              const tr = Math.round(p.gold ? goldR + tone * 16 : ivyR + tone * 7)
+              const tg = Math.round(p.gold ? goldG + tone * 10 : ivyG + tone * 5)
+              const tb = Math.round(p.gold ? goldB + tone * 5 : ivyB + tone * 4)
+
+              ctx.fillStyle = `rgb(${tr},${tg},${tb})`
+              ctx.shadowColor = p.gold ? 'rgba(218,176,56,0.24)' : 'rgba(242,236,222,0.16)'
+              ctx.shadowBlur = 2
+
+              for (let echo = 2; echo >= 1; echo--) {
+                const tt = Math.max(0, migT - echo * 0.052)
+                const te = s5(0, 1, tt)
+                const tbT = s5(1 - BLEND, 1, tt)
+                const twirl = Math.sin(tt * Math.PI) * (13 + p.orbR * 26)
+                const sag = Math.sin(Math.PI * tt) * Math.sin(Math.PI * tt) * (18 + p.orbR * 18)
+                const tx = bz3(te, P0x, P1x, P2x, orbCx) + Math.cos(p.bp + tt * Math.PI * 1.6) * twirl
+                const ty = bz3(te, P0y, P1y, P2y, orbCy) + Math.sin(p.bp + tt * Math.PI * 1.2) * twirl * 0.36 + sag
+                const trailX = lp(tx, orbPx, tbT)
+                const trailY = lp(ty, orbPy, tbT)
+                const trailOp = op * (echo === 1 ? 0.18 : 0.08) * (1 - blendT)
+                if (trailOp < 0.006) continue
+                ctx.font = FONT_CACHE[fontIdx(Math.max(0.5, fsz * (echo === 1 ? 0.82 : 0.68)))]
+                ctx.globalAlpha = trailOp
+                ctx.fillText(p.ch, trailX, trailY)
+              }
+              ctx.globalAlpha = 1
+              ctx.shadowBlur = 0
+            }
           } else {
             px  = orbPx; py = orbPy
             fsz = p.fszOrb * sc * (0.88 + depth * 0.12)
-            op  = (0.44 + (1 - p.orbR) * 0.56) * (0.04 + depth * 0.82) * p.boost
+            op  = (0.44 + (1 - p.orbR) * 0.56) * (0.04 + depth * 0.82) * p.boost * p.alpha
           }
 
           if (op < 0.006) continue
+          if (pointerActive > 0.004) {
+            const ix = px - ms.x
+            const iy = py - ms.y
+            const id2 = ix * ix + iy * iy
+            if (id2 < pointerRadius2 && id2 > 0.01) {
+              const id = Math.sqrt(id2)
+              const local = Math.pow(1 - id / pointerRadius, 2) * pointerActive
+              const textMotion = p.textRole === 'scatter' ? 0.62 : 0.18
+              const push = pointerPush * local * (0.45 + depth * 0.55) * (p.kind === 'text' ? textMotion : 1)
+              px += (ix / id) * push
+              py += (iy / id) * push
+              fsz *= 1 + local * (p.textRole === 'scatter' ? 0.044 : 0.018)
+              op *= 1 + local * (p.textRole === 'scatter' ? 0.18 : 0.07)
+            }
+          }
+          if (scrollEnergy > 0.001) {
+            const scatterBreath = p.textRole === 'scatter' ? 1.55 : 0.82
+            const scrollLift = scrollDrift * (1 - p.orbR * 0.42) * 3.2 * scatterBreath
+            py += scrollLift
+            fsz *= 1 + scrollEnergy * 0.010 * (1 - p.orbR * 0.35) * scatterBreath
+            op *= 1 + scrollEnergy * 0.045 * (0.35 + depth * 0.65) * (p.textRole === 'scatter' ? 1.35 : 0.88)
+          }
           vSx[vLen]=px; vSy[vLen]=py; vDepth[vLen]=depth
           vOp[vLen]=op; vFsz[vLen]=Math.max(0.5, fsz); vPidx[vLen]=i
           vLen++
 
         } else {
-          const spawnT = ss(p.migStart, p.migStart + 0.055, prog)
+          const spawnT = s5(p.migStart, Math.min(1, p.migStart + 0.16), prog)
           if (spawnT <= 0) continue
 
           const bs = 1 + p.ba * Math.sin(tSec + p.bp)
           let ox = p.ox * bs, oy = p.oy * bs, oz = p.oz * bs
-          const m = mats[p.layer]
-          _rt1 = ox*m.cY + oz*m.sY; oz = -ox*m.sY + oz*m.cY; ox = _rt1
-          _rt1 = oy*m.cX - oz*m.sX; oz =  oy*m.sX + oz*m.cX; oy = _rt1
-          _rt1 = ox*m.cZ - oy*m.sZ; _rt2 = ox*m.sZ + oy*m.cZ; ox = _rt1; oy = _rt2
+          if (p.kind === 'text') {
+            ox += Math.sin(tSec * 0.54 + p.bp) * 0.004
+            oy += Math.cos(tSec * 0.46 + p.glint) * 0.003
+            oz += Math.sin(tSec * 0.38 + p.bp) * 0.012
+          } else {
+            const m = mats[p.layer]
+            _rt1 = ox*m.cY + oz*m.sY; oz = -ox*m.sY + oz*m.cY; ox = _rt1
+            _rt1 = oy*m.cX - oz*m.sX; oz =  oy*m.sX + oz*m.cX; oy = _rt1
+            _rt1 = ox*m.cZ - oy*m.sZ; _rt2 = ox*m.sZ + oy*m.cZ; ox = _rt1; oy = _rt2
+          }
           const sc    = FOV / (FOV + oz * RADIUS)
           const depth = (1 - oz) * 0.5
 
           const pulseWave = 0.04 * Math.max(0, Math.sin(p.orbR * 6.0 - tSec * 1.2 + p.bp * 0.30))
           const radGlow   = 0.44 + (1 - p.orbR) * 0.56 + pulseWave
-          const op        = radGlow * (0.04 + depth * 0.82) * p.boost * spawnT
+          let op          = radGlow * (0.04 + depth * 0.82) * p.boost * spawnT * p.alpha
           if (op < 0.006) continue
 
-          vSx[vLen] = orbCx + ox * RADIUS * sc
-          vSy[vLen] = orbCy + oy * RADIUS * sc
+          let px = orbCx + ox * RADIUS * sc * interactionScale
+          let py = orbCy + oy * RADIUS * sc * interactionScale
+          let fsz = p.fszOrb * sc * (0.88 + depth * 0.12) * (0.985 + 0.015 * Math.sin(tSec * 0.72 + p.glint))
+          if (pointerActive > 0.004) {
+            const ix = px - ms.x
+            const iy = py - ms.y
+            const id2 = ix * ix + iy * iy
+            if (id2 < pointerRadius2 && id2 > 0.01) {
+              const id = Math.sqrt(id2)
+              const local = Math.pow(1 - id / pointerRadius, 2) * pointerActive
+              const textMotion = p.textRole === 'scatter' ? 0.62 : 0.18
+              const push = pointerPush * local * (0.45 + depth * 0.55) * (p.kind === 'text' ? textMotion : 1)
+              px += (ix / id) * push
+              py += (iy / id) * push
+              fsz *= 1 + local * (p.textRole === 'scatter' ? 0.044 : 0.018)
+              op *= 1 + local * (p.textRole === 'scatter' ? 0.18 : 0.07)
+            }
+          }
+          if (scrollEnergy > 0.001) {
+            const scatterBreath = p.textRole === 'scatter' ? 1.55 : 0.82
+            const scrollLift = scrollDrift * (1 - p.orbR * 0.42) * 3.2 * scatterBreath
+            py += scrollLift
+            fsz *= 1 + scrollEnergy * 0.010 * (1 - p.orbR * 0.35) * scatterBreath
+            op *= 1 + scrollEnergy * 0.045 * (0.35 + depth * 0.65) * (p.textRole === 'scatter' ? 1.35 : 0.88)
+          }
+
+          vSx[vLen] = px
+          vSy[vLen] = py
           vDepth[vLen] = depth; vOp[vLen] = op
-          vFsz[vLen]   = Math.max(0.5, p.fszOrb * sc * (0.88 + depth * 0.12))
+          vFsz[vLen]   = Math.max(0.5, fsz)
           vPidx[vLen]  = i
           vLen++
         }
@@ -780,7 +1248,7 @@ export default function LogoParticles() {
       ctx.textBaseline = 'middle'
 
       let lastFI   = -1
-      let lastGold = -1
+      let lastStyle = -1
 
       for (let j = 0; j < vLen; j++) {
         const k = sortBuf[j]
@@ -789,21 +1257,31 @@ export default function LogoParticles() {
         const fi = fontIdx(vFsz[k])
         if (fi !== lastFI) { ctx.font = FONT_CACHE[fi]; lastFI = fi }
 
-        const isGold = p.gold ? 1 : 0
-        if (isGold !== lastGold) {
+        const toneBand = Math.max(0, Math.min(5, Math.round(p.tone * 5)))
+        const styleKey = (p.gold ? 10 : 0) + toneBand
+        if (styleKey !== lastStyle) {
+          const tone = (toneBand - 2.5) / 2.5
           if (p.gold) {
-            ctx.fillStyle   = `rgb(${goldR},${goldG},${goldB})`
-            ctx.shadowColor = `rgba(${goldR},${goldG - 7},42,0.52)`
+            const r = Math.round(goldR + tone * 12)
+            const g = Math.round(goldG + tone * 7)
+            const b = Math.round(goldB + tone * 4)
+            ctx.fillStyle   = `rgb(${r},${g},${b})`
+            ctx.shadowColor = `rgba(${r},${Math.max(0, g - 7)},42,0.48)`
             ctx.shadowBlur  = 3
           } else {
-            ctx.fillStyle   = `rgb(${ivyR},${ivyG},${ivyB})`
-            ctx.shadowColor = 'rgba(242,236,222,0.38)'
+            const r = Math.round(ivyR + tone * 5)
+            const g = Math.round(ivyG + tone * 4)
+            const b = Math.round(ivyB + tone * 4)
+            ctx.fillStyle   = `rgb(${r},${g},${b})`
+            ctx.shadowColor = 'rgba(242,236,222,0.34)'
             ctx.shadowBlur  = 2
           }
-          lastGold = isGold
+          lastStyle = styleKey
         }
 
-        ctx.globalAlpha = Math.min(1, (p.gold ? vOp[k] * 0.84 : vOp[k]) * charBoost)
+        const scatterLife = p.textRole === 'scatter' ? 0.08 : 0.04
+        const life = 1 - scatterLife + scatterLife * Math.sin(tSec * (p.textRole === 'scatter' ? 1.08 : 0.82) + p.glint)
+        ctx.globalAlpha = Math.min(1, (p.gold ? vOp[k] * 0.84 : vOp[k]) * charBoost * life)
         ctx.fillText(p.ch, vSx[k], vSy[k])
       }
 
@@ -820,14 +1298,38 @@ export default function LogoParticles() {
       cancelAnimationFrame(raf)
       window.removeEventListener('resize', resize)
       window.removeEventListener('mousemove', onMouseMove)
+      window.removeEventListener('mouseleave', onMouseLeave)
     }
   }, [])
 
   return (
-    <canvas
-      ref={canvasRef}
-      aria-hidden
-      style={{ position: 'fixed', inset: 0, zIndex: 9000, pointerEvents: 'none' }}
-    />
+    <>
+      <canvas
+        ref={canvasRef}
+        aria-hidden
+        style={{ position: 'fixed', inset: 0, zIndex: 9000, pointerEvents: 'none' }}
+      />
+      <span
+        ref={markerRef}
+        aria-hidden
+        style={{
+          position:      'fixed',
+          left:          '50%',
+          top:           '50%',
+          zIndex:        9001,
+          color:         'rgba(242,236,222,0.86)',
+          fontSize:      '10px',
+          lineHeight:    1,
+          letterSpacing: '0.08em',
+          opacity:       0,
+          pointerEvents: 'none',
+          textShadow:    '0 0 10px rgba(212,175,55,0.26)',
+          transform:     'translateX(-50%)',
+          whiteSpace:    'nowrap',
+        }}
+      >
+        30M NEW VERSION
+      </span>
+    </>
   )
 }

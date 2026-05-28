@@ -88,8 +88,8 @@ export default function HomeWorkSection() {
         // atmospheric gradient into the section surface — glass-like depth.
         backdropFilter:       'blur(4px) saturate(0.92)',
         WebkitBackdropFilter: 'blur(4px) saturate(0.92)',
-        paddingTop:           'clamp(80px, 10vh, 120px)',
-        paddingBottom:        'clamp(100px, 14vh, 180px)',
+        paddingTop:           'clamp(100px, 12vh, 140px)',
+        paddingBottom:        'clamp(140px, 18vh, 220px)',
       }}
     >
       {/* ── Atmospheric continuity glows — echo hero lighting ── */}
@@ -129,11 +129,11 @@ export default function HomeWorkSection() {
         style={{
           position:   'relative',
           zIndex:     2,
-          maxWidth:   '1200px',
+          maxWidth:   '1320px',
           margin:     '0 auto',
-          padding:    '0 clamp(24px, 5vw, 60px)',
+          padding:    '0 clamp(24px, 6vw, 80px)',
           display:    'flex',
-          gap:        'clamp(36px, 5vw, 80px)',
+          gap:        'clamp(48px, 8vw, 120px)',
           alignItems: 'flex-start',
         }}
       >
@@ -191,7 +191,7 @@ export default function HomeWorkSection() {
               <h2
                 style={{
                   fontFamily:    "'Playfair Display', serif",
-                  fontSize:      'clamp(1.85rem, 3vw, 2.9rem)',
+                  fontSize:      'clamp(2.2rem, 4vw, 3.5rem)',
                   fontWeight:    700,
                   lineHeight:    1.07,
                   letterSpacing: '-0.022em',
@@ -232,11 +232,11 @@ export default function HomeWorkSection() {
             {/* Body copy */}
             <p
               style={{
-                marginTop:  '20px',
-                fontSize:   '13px',
+                marginTop:  '24px',
+                fontSize:   '14px',
                 color:      'var(--text-muted)',
-                lineHeight: 1.75,
-                maxWidth:   '52ch',
+                lineHeight: 1.8,
+                maxWidth:   '58ch',
               }}
             >
               A curated selection of interactive experiences, tools, and

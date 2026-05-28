@@ -28,10 +28,10 @@ export default function Navbar() {
       className={cn(
         'fixed top-0 inset-x-0 z-50',
         'flex items-center justify-between',
-        'px-6 md:px-10 h-[64px]',
+        'px-6 md:px-12 h-[72px]',
         isHome
-          ? 'bg-[rgba(0,0,0,0.08)] backdrop-blur-[4px]'
-          : 'bg-[#050505]/88 backdrop-blur-md border-b border-white/[0.055]',
+          ? 'bg-[rgba(5,5,5,0.02)] backdrop-blur-md border-b border-transparent'
+          : 'bg-[#050505]/75 backdrop-blur-2xl border-b border-white/[0.04]',
       )}
       style={{ transition: 'background 0.5s ease, border-color 0.5s ease, backdrop-filter 0.5s ease' }}
     >
@@ -41,7 +41,7 @@ export default function Navbar() {
         style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}
       >
         {/* id used by the migration system to read the logo's screen position */}
-        <div id="logo-anchor" style={{ width: '58px', height: '58px', flexShrink: 0 }}>
+        <div id="logo-anchor" style={{ width: '58px', height: '58px', flexShrink: 0, position: 'relative' }}>
           <LogoScene />
         </div>
       </TransitionLink>
@@ -55,8 +55,8 @@ export default function Navbar() {
               key={href}
               href={href}
               className={cn(
-                'nav-link text-[10px] tracking-[0.18em] uppercase transition-colors duration-200',
-                active ? 'text-white active' : 'text-white/30 hover:text-white/75',
+                'nav-link relative text-[10px] tracking-[0.2em] uppercase transition-all duration-300',
+                active ? 'text-white active' : 'text-white/40 hover:text-white',
               )}
             >
               <span style={{
@@ -95,8 +95,8 @@ export default function Navbar() {
 
       {/* Mobile menu */}
       {open && (
-        <nav className="md:hidden absolute top-[64px] inset-x-0 border-b border-white/[0.06]
-                        bg-[#050505]/95 backdrop-blur-md flex flex-col py-8 px-6 gap-7">
+        <nav className="md:hidden absolute top-[72px] inset-x-0 border-b border-white/[0.04]
+                        bg-[#050505]/95 backdrop-blur-2xl flex flex-col py-8 px-6 gap-7 shadow-2xl">
           {[...NAV_LINKS, { href: '/admin', label: 'Admin' }].map(({ href, label }) => (
             <TransitionLink
               key={href}

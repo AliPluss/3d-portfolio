@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react'
 import { Download }            from 'lucide-react'
 import PageShell               from '@/components/PageShell'
+import { motion, Variants }    from 'framer-motion'
+import MagneticButton          from '@/components/MagneticButton'
 
 /* ═══════════════════════════════════════════════════════════════
    DATA
@@ -345,15 +347,22 @@ function SkillGroup({ group }: { group: typeof SKILL_GROUPS[number] }) {
 export default function CVPage() {
   const [hoveredExp, setHoveredExp] = useState<number | null>(null)
 
-  useEffect(() => {
-    const els = document.querySelectorAll<HTMLElement>('.reveal')
-    const obs = new IntersectionObserver(
-      entries => entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('is-visible') }),
-      { threshold: 0.08 },
-    )
-    els.forEach(el => obs.observe(el))
-    return () => obs.disconnect()
-  }, [])
+  const container: Variants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: { staggerChildren: 0.1, delayChildren: 0.1 },
+    },
+  }
+
+  const item: Variants = {
+    hidden: { opacity: 0, y: 30 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: 1.0, ease: [0.16, 1, 0.3, 1] },
+    },
+  }
 
   return (
     <PageShell>
@@ -367,20 +376,27 @@ export default function CVPage() {
               DOWNLOAD UTILITY
           ══════════════════════════════════════ */}
           <div className="no-print" style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '40px' }}>
-            <button className="btn-gold" onClick={() => window.print()}>
-              <Download size={13} />
-              Download PDF
-            </button>
+            <MagneticButton>
+              <button className="btn-gold" aria-label="Download Curriculum Vitae as PDF" onClick={() => window.print()}>
+                <Download size={13} />
+                Download PDF
+              </button>
+            </MagneticButton>
           </div>
 
           {/* ══════════════════════════════════════
               HERO — NAME + STATS
           ══════════════════════════════════════ */}
-          <header className="reveal" style={{ marginBottom: '56px' }}>
+          <motion.header 
+            variants={container}
+            initial="hidden"
+            animate="visible"
+            style={{ marginBottom: '56px' }}
+          >
 
-            <p className="section-label" style={{ marginBottom: '22px' }}>
+            <motion.p variants={item} className="section-label" style={{ marginBottom: '22px' }}>
               Curriculum Vitae
-            </p>
+            </motion.p>
 
             {/* Name row + stats */}
             <div style={{
@@ -395,7 +411,7 @@ export default function CVPage() {
               <div>
                 <h1 style={{
                   fontFamily:    "'Playfair Display', serif",
-                  fontSize:      'clamp(2.8rem, 7vw, 5rem)',
+                  fontSize:      'clamp(2.4rem, 7vw, 5rem)',
                   fontWeight:    700,
                   lineHeight:    1.04,
                   letterSpacing: '-0.025em',
@@ -478,16 +494,25 @@ export default function CVPage() {
             </div>
 
             {/* Gold rule */}
-            <div style={{
-              height:     '1px',
-              background: 'linear-gradient(90deg, var(--gold-border) 0%, transparent 70%)',
-            }} />
-          </header>
+            <motion.div 
+              variants={item}
+              style={{
+                height:     '1px',
+                background: 'linear-gradient(90deg, var(--gold-border) 0%, transparent 70%)',
+              }} 
+            />
+          </motion.header>
 
-          {/* ══════════════════════════════════════
-              PROFILE
-          ══════════════════════════════════════ */}
-          <section className="reveal" style={{ marginBottom: '52px' }}>
+          <motion.div
+            variants={container}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-10%" }}
+          >
+            {/* ══════════════════════════════════════
+                PROFILE
+            ══════════════════════════════════════ */}
+            <motion.section variants={item} style={{ marginBottom: '52px' }}>
             <SectionHeading label="Profile" />
 
             <blockquote style={{
@@ -511,12 +536,12 @@ export default function CVPage() {
                 minimalism, and driven by the belief that the web is the most powerful creative medium alive.
               </p>
             </blockquote>
-          </section>
+          </motion.section>
 
           {/* ══════════════════════════════════════
               EXPERIENCE
           ══════════════════════════════════════ */}
-          <section className="reveal" style={{ marginBottom: '52px' }}>
+          <motion.section variants={item} style={{ marginBottom: '52px' }}>
             <SectionHeading label="Experience" />
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -530,12 +555,12 @@ export default function CVPage() {
                 />
               ))}
             </div>
-          </section>
+          </motion.section>
 
           {/* ══════════════════════════════════════
               EDUCATION
           ══════════════════════════════════════ */}
-          <section className="reveal" style={{ marginBottom: '52px' }}>
+          <motion.section variants={item} style={{ marginBottom: '52px' }}>
             <SectionHeading label="Education" />
 
             <div style={{
@@ -547,12 +572,12 @@ export default function CVPage() {
                 <EducationCard key={i} edu={edu} />
               ))}
             </div>
-          </section>
+          </motion.section>
 
           {/* ══════════════════════════════════════
               SKILLS
           ══════════════════════════════════════ */}
-          <section className="reveal" style={{ marginBottom: '0' }}>
+          <motion.section variants={item} style={{ marginBottom: '0' }}>
             <SectionHeading label="Selected Skills" />
 
             <div style={{
@@ -568,7 +593,8 @@ export default function CVPage() {
                 <SkillGroup key={i} group={group} />
               ))}
             </div>
-          </section>
+          </motion.section>
+          </motion.div>
 
         </div>
       </main>

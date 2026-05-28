@@ -2,7 +2,9 @@
 
 import { useEffect, useState, useRef } from 'react'
 import ProjectCard, { type Project }   from '@/components/ProjectCard'
-import PageShell                        from '@/components/PageShell'
+import PageShell                       from '@/components/PageShell'
+import TextReveal                      from '@/components/TextReveal'
+import { motion, Variants }            from 'framer-motion'
 
 // ─── Fallback data ────────────────────────────────────────────────────────────
 const FALLBACK_PROJECTS: Project[] = [
@@ -139,7 +141,7 @@ export default function ProjectsPage() {
 
   /* ── Fetch ── */
   useEffect(() => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000'
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
 
     fetch(`${apiUrl}/api/projects`, { signal: AbortSignal.timeout(4000) })
       .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json() })
@@ -167,6 +169,23 @@ export default function ProjectsPage() {
   const duo      = projects.slice(1, 3)
   const grid     = projects.slice(3)
 
+  const container: Variants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: { staggerChildren: 0.1, delayChildren: 0.1 },
+    },
+  }
+
+  const item: Variants = {
+    hidden: { opacity: 0, y: 30 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: 1.0, ease: [0.16, 1, 0.3, 1] },
+    },
+  }
+
   return (
     <PageShell>
       <main
@@ -178,61 +197,54 @@ export default function ProjectsPage() {
           {/* ════════════════════════════════════════
               HEADER
           ════════════════════════════════════════ */}
-          <div ref={headerRef} className="reveal" style={{ marginBottom: '64px' }}>
-            <p className="section-label" style={{ marginBottom: '20px' }}>
+          <motion.div 
+            variants={container}
+            initial="hidden"
+            animate="visible"
+            className="mb-16"
+          >
+            <motion.p variants={item} className="section-label mb-5">
               Selected Work
-            </p>
+            </motion.p>
 
-            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: '24px', marginBottom: '28px' }}>
-              <h1 style={{
-                fontFamily:    "'Playfair Display', serif",
-                fontSize:      'clamp(2.8rem, 6vw, 5.2rem)',
-                fontWeight:    700,
-                color:         '#fff',
-                lineHeight:    1.06,
-                letterSpacing: '-0.025em',
-              }}>
+            <div className="flex items-end justify-between flex-wrap gap-6 mb-7">
+              <motion.h1 
+                variants={item}
+                className="font-display text-[clamp(2.4rem,6vw,5.2rem)] font-bold text-white leading-[1.06] tracking-tight"
+                style={{ fontFamily: "'Playfair Display', serif" }}
+              >
                 Projects &amp;<br />
-                <em style={{ fontStyle: 'italic', color: 'var(--gold)' }}>Experiments</em>
-              </h1>
+                <em className="italic font-normal text-gold">Experiments</em>
+              </motion.h1>
 
               {/* Editorial counter */}
               {!loading && (
-                <span style={{
-                  fontFamily:    "'Inter', sans-serif",
-                  fontSize:      '11px', fontWeight: 400,
-                  letterSpacing: '0.12em',
-                  color:         'var(--text-dim)',
-                  textTransform: 'uppercase',
-                  alignSelf:     'flex-end',
-                  paddingBottom: '8px',
-                }}>
-                  {String(projects.length).padStart(2, '0')} Projects
-                </span>
+                <motion.span 
+                  variants={item}
+                  className="font-inter text-[11px] font-normal tracking-[0.12em] text-white/40 uppercase self-end pb-2"
+                >
+                  {String(projects.length).padStart(2, '0')} Curated Pieces
+                </motion.span>
               )}
             </div>
 
             {/* Intro */}
-            <p style={{
-              fontFamily:  "'Inter', sans-serif",
-              fontSize:    '14px',
-              color:       'var(--text-muted)',
-              lineHeight:  1.75,
-              maxWidth:    '56ch',
-              marginBottom:'24px',
-            }}>
+            <motion.p 
+              variants={item}
+              className="font-inter text-[14px] text-white/50 leading-relaxed max-w-[56ch] mb-6"
+            >
               Craft-driven work at the intersection of design, code, and motion.
               Each project is a considered response to a hard problem.
-            </p>
+            </motion.p>
 
-            <div className="gold-line" />
+            <motion.div variants={item} className="gold-line" />
 
             {usingFallback && (
-              <p style={{ marginTop: '14px', fontSize: '11px', color: 'var(--text-ghost)', letterSpacing: '0.05em' }}>
-                Showing sample projects — connect the backend to load live data.
-              </p>
+              <motion.p variants={item} className="mt-4 text-[11px] text-white/30 tracking-wider uppercase">
+                Viewing curated case studies
+              </motion.p>
             )}
-          </div>
+          </motion.div>
 
           {/* ════════════════════════════════════════
               CONTENT

@@ -19,6 +19,7 @@ import CustomCursor            from '@/components/CustomCursor'
 import ScrollIndicator         from '@/components/ScrollIndicator'
 import PageTransitionOverlay   from '@/components/PageTransitionOverlay'
 import Providers               from '@/components/providers'
+import Footer                  from '@/components/Footer'
 
 export const metadata: Metadata = {
   title: 'Portfolio — Creative Developer',
@@ -39,6 +40,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <CustomCursor />
             <Navbar />
             {children}
+            <Footer />
             <ScrollIndicator />
           </PageTransitionOverlay>
         </Providers>

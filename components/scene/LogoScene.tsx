@@ -10,6 +10,7 @@ import {
   type CSSProperties,
 } from 'react'
 import { Canvas, useFrame }  from '@react-three/fiber'
+import gsap from 'gsap'
 import { useGLTF, Center }   from '@react-three/drei'
 import {
   Box3,
@@ -51,7 +52,6 @@ function LightRig() {
 
   useFrame(() => {
     if (!ref.current) return
-    // High smoothing — glacially slow drift
     const s = 0.018
     cur.current.x += (target.current.x - cur.current.x) * s
     cur.current.y += (target.current.y - cur.current.y) * s
@@ -71,6 +71,7 @@ function LightRig() {
 /* ── Model ────────────────────────────────────────────────────────────────── */
 function LogoModel() {
   const { scene } = useGLTF('/logo_avatar.glb')
+  const group = useRef<any>()
 
   const autoScale = useMemo(() => {
     const box  = new Box3().setFromObject(scene)
@@ -79,15 +80,16 @@ function LogoModel() {
     return max > 0 ? 1.8 / max : 1
   }, [scene])
 
-  /*
-   * Core fix: GLB files often embed MeshBasicMaterial which is unlit —
-   * no light in the scene will affect it. Traverse every mesh and replace
-   * any non-standard material with MeshStandardMaterial so the logo
-   * actually responds to directional lights.
-   *
-   * If a mesh already uses MeshStandardMaterial/MeshPhysicalMaterial
-   * (both instanceof MeshStandardMaterial), just tune roughness/metalness.
-   */
+  useEffect(() => {
+    if (!group.current) return
+
+    gsap.fromTo(
+      group.current.scale,
+      { x: 0.72, y: 0.72, z: 0.72 },
+      { x: 1, y: 1, z: 1, duration: 1.25, ease: 'power3.out' },
+    )
+  }, [])
+
   useEffect(() => {
     scene.traverse((child) => {
       if (!(child as Mesh).isMesh) return
@@ -98,14 +100,12 @@ function LogoModel() {
 
       mats.forEach((mat, idx) => {
         if (mat instanceof MeshStandardMaterial) {
-          // Already lit — tune for a dark metallic/stone feel
           mat.roughness   = 0.60
           mat.metalness   = 0.35
           mat.needsUpdate = true
           return
         }
 
-        // Unlit material — replace with a lit equivalent, preserving textures
         const stdMat = new MeshStandardMaterial({
           color:     (mat as any).color     ?? new Color(0x888888),
           map:       (mat as any).map       ?? null,
@@ -125,9 +125,11 @@ function LogoModel() {
   }, [scene])
 
   return (
-    <Center>
-      <primitive object={scene} scale={autoScale} />
-    </Center>
+    <group ref={group}>
+      <Center>
+        <primitive object={scene} scale={autoScale} />
+      </Center>
+    </group>
   )
 }
 
@@ -151,40 +153,30 @@ export default function LogoScene({ className, style }: LogoSceneProps) {
         gl={{
           antialias:            true,
           alpha:                true,
-          preserveDrawingBuffer: true,   // required: lets LogoParticles sample rendered pixels
+          preserveDrawingBuffer: true,
           powerPreference:      'high-performance',
           toneMapping:          ACESFilmicToneMapping,
           toneMappingExposure:  1.0,
         }}
       >
         <Suspense fallback={null}>
-          {/* Very low ambient — logo stays dark, shadows define the form */}
           <ambientLight intensity={0.08} />
-
-          {/* Key — top-left, warm white, primary shaping light */}
           <directionalLight
             position={[-2, 4, 3]}
             intensity={1.3}
             color="#fff8f0"
           />
-
-          {/* Warm fill — subtle reflected accent from below, not a main source */}
           <directionalLight
             position={[1, -1.5, 2]}
             intensity={0.18}
             color="#c9a84c"
           />
-
-          {/* Rim — soft cool from behind, gentle silhouette edge */}
           <directionalLight
             position={[0, 1, -4]}
             intensity={0.55}
             color="#c8d0dc"
           />
-
-          {/* Mouse-reactive warm highlight — high smoothing, barely perceptible */}
           <LightRig />
-
           <LogoModel />
         </Suspense>
       </Canvas>
