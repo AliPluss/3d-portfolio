@@ -1,51 +1,87 @@
+<div align="center">
+
 # 3D Portfolio
 
-A cinematic, high-performance 3D portfolio built with Next.js 14, Three.js, GSAP, and Tailwind CSS.
+Personlig porteføljeside med interaktiv 3D-scene, animert scrolling og eget backend for innhold.
 
-## Getting Started
+![Next.js](https://img.shields.io/badge/Next.js_14-111827?style=for-the-badge&logo=nextdotjs&logoColor=white)
+![Three.js](https://img.shields.io/badge/Three.js-000000?style=for-the-badge&logo=threedotjs&logoColor=white)
+![GSAP](https://img.shields.io/badge/GSAP-88CE02?style=for-the-badge&logo=greensock&logoColor=black)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)
 
-### Prerequisites
-- Node.js (v18+)
-- npm
+![Express](https://img.shields.io/badge/Express-000000?style=for-the-badge&logo=express&logoColor=white)
+![MongoDB](https://img.shields.io/badge/MongoDB-47A248?style=for-the-badge&logo=mongodb&logoColor=white)
+![Status](https://img.shields.io/badge/status-under%20utvikling-yellow?style=for-the-badge)
 
-### Installation
+</div>
+
+![Forsiden med 3D-modell, lys og bildekort](docs/screenshots/01-hjem.jpg)
+
+> [!NOTE]
+> Prosjektet er under utvikling. Skjermbildene er tatt fra en lokal kjøring uten backend, så innholdet på enkelte sider er eksempeldata.
+
+## Om prosjektet
+
+En porteføljeside der hovedfokuset er en filmatisk 3D-opplevelse i nettleseren: en 3D-modell i en opplyst scene, kort som skifter mens man scroller, og myke overganger mellom sidene. I tillegg har siden et eget Express-backend og et adminpanel for å publisere prosjekter og blogginnlegg.
+
+## Funksjoner
+
+| Område | Hva det gjør |
+| --- | --- |
+| 🧊 **3D-scene** | Three.js via React Three Fiber og Drei, med egne lys og 3D-modeller (GLB) |
+| 🎞️ **Animasjon** | Scroll-animasjoner med GSAP og Lenis, sideoverganger med Framer Motion |
+| 📁 **Sider** | Forside, prosjekter, blogg, CV og kontakt |
+| 🔐 **Adminpanel** | Innlogging og dashboard for å opprette, endre og slette prosjekter og innlegg |
+| 🖼️ **Bilder** | Bildeopplasting til Cloudinary fra adminpanelet |
+| ⚡ **Ytelse** | 3D-modellene er komprimert med Draco for raskere lasting |
+| 🛟 **Reserve** | Frontend viser eksempeldata hvis backend ikke svarer |
+
+![Kortene på forsiden skifter mens man scroller](docs/screenshots/02-scroll.jpg)
+
+## Teknisk oppbygning
+
+| Del | Teknologi |
+| --- | --- |
+| Frontend | Next.js 14 (App Router), React, TypeScript, Tailwind CSS |
+| 3D og animasjon | Three.js, React Three Fiber, Drei, GSAP, Lenis, Framer Motion |
+| Backend | Node.js og Express (`server/`) |
+| Database | MongoDB med Mongoose-modeller for brukere, prosjekter og innlegg |
+| Tilgang | JWT-innlogging, beskyttede ruter for admin |
+| Filer og analyse | Cloudinary for bilder, PostHog (valgfritt) |
+
+### API
+
+| Metode | Endepunkt | Tilgang |
+| --- | --- | --- |
+| POST | `/api/auth/login` | Åpen |
+| GET | `/api/projects`, `/api/projects/:id` | Åpen |
+| POST · PUT · DELETE | `/api/projects` | Krever innlogging |
+| GET | `/api/posts`, `/api/posts/:idOrSlug` | Åpen |
+| POST · PUT · DELETE | `/api/posts` | Krever innlogging |
+| POST | `/api/projects/upload/image`, `/api/posts/upload/image` | Krever innlogging |
+
+## Kjør lokalt
+
 ```bash
 npm install
-```
-
-### Environment Setup
-Copy the `.env.local.example` file to create your own environment configuration:
-```bash
 cp .env.local.example .env.local
+npm run dev          # bare frontend, med eksempeldata
+npm run dev:all      # frontend + Express-backend
 ```
 
-The frontend will gracefully fall back to sample data if no backend is provided. For full dynamic capabilities, you will need a MongoDB URI and a JWT secret.
+For backend trengs en MongoDB-tilkobling og en `JWT_SECRET` i `server/.env` (se `.env.local.example`).
 
-### Development
-To run the frontend locally:
-```bash
-npm run dev
-```
+## Videre arbeid
 
-To run both the Next.js frontend and Express backend concurrently (if configured):
-```bash
-npm run dev:all
-```
+- Ekte innhold og bilder i prosjekter og blogg
+- Publisere frontend og backend
+- Mobiltilpasning og tester
 
-## Production Deployment
+---
 
-### Vercel Deployment (Frontend)
-This project is fully compatible with Vercel and optimized for the App Router.
-1. Push the repository to GitHub.
-2. Import the project in Vercel.
-3. Configure your Environment Variables in Vercel (matching `.env.local`).
-4. Set the Build Command to `npm run build` and Install Command to `npm install`.
-5. Deploy.
+<div align="center">
 
-### 3D Asset Optimization
-The core 3D assets (`avatar.glb` and `avatar2.glb`) have been compressed using Draco (`gltf-pipeline`). The optimized files (`avatar.optimized.glb` and `avatar2.optimized.glb`) are used in production to drastically reduce load times. Original files remain in the `/public` directory as backups.
+**Ali Badr Almrabhi** · Vg2 IT-utvikling · [GitHub](https://github.com/AliPluss) · [LinkedIn](https://www.linkedin.com/in/ali-badr-a-a-almrabhi-5676b9448/)
 
-### Backend / API Note
-The `/api/` endpoints configured in this repository point to an Express server (`http://localhost:5000` by default). 
-- If deployed separately (e.g., to Render or Heroku), update `NEXT_PUBLIC_API_URL` to your production backend URL.
-- If no backend is deployed, the Next.js frontend will automatically catch fetch errors and safely render high-quality fallback placeholder data.
+</div>
